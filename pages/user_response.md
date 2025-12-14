@@ -5,4 +5,5 @@ Users can interact with the system in several ways:
 3. Respond to data entered into their associated reputation models
 4. Voluntarily report incidents.
 
-[Mitigation Report](../figures/user_mitigation.png) 
+<img src="../figures/images/user_mitigation.png" alt="Mitigation Report" width="600" />
+
