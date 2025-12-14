@@ -17,5 +17,6 @@ The SADE workflow includes the following critical elements:
 - **Runtime Monitoring and Reputation Modeling**: [link](pages/reputation_modeling.md)
 - **SafeCert**: [link](pages/certification.md)
 - **Proving Ground**: [link](pages/proving_ground.md)
+- **User Input**: [link](pages/user_input.md) Users can respond to incidents captured in their reputation models and voluntarily report incidents. 
 - **Project Glossary**: [link](pages/glossary.md) 
 
