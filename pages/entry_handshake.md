@@ -41,5 +41,5 @@ When additional competency evidence is requested, the Pilot/Organization will of
 ![Certificate needed](../figures/svg/generate_certificate.svg)
 
 ## Communicating Evidence Needs 
-The above interaction between the SAM-Gateway and the Drone|GCS is therefore predicated upon a request for action that includes a list depicting the *missing evidence*. We define this using a predefined set of keywords connected with a simple syntax.  
+The above interaction between the SAM-Gateway and the Drone|GCS is therefore predicated upon a request for action that includes a list depicting the *missing evidence*. We define this using a formal [grammar](evidence_data_exchange.md).
 
