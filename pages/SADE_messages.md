@@ -1,20 +1,23 @@
 # APIs and Message Formats
 
+<span style="color:red;">TODO: Discuss (@Theo,@Jane) sequence diagram flow and message format.</span>
+
 SADE relies on structured message exchanges between architectural components.  
 Each message below is documented using a common template derived from the system’s sequence diagrams.  
 **This section defines structure only; semantics and deployment details are intentionally left unspecified.**
 
 ---
 
-## Diagram: SADE Entry Workflow (`sade_entry.svg`)
+## SADE Entry Workflow 
+![On-entry handshake](../figures/svg/sade_entry.svg)
 
-### MESSAGE: `<ENTRY_REQUEST_MESSAGE_NAME>`
+#### MESSAGE: `<ENTRY_REQUEST_MESSAGE_NAME>`
 
 **Caller:**  
-`<Component from diagram>`
+Drone|GCS
 
 **Callee:**  
-`<Component from diagram>`
+SAM-Gateway
 
 **Context:**  
 SADE Zone entry workflow
@@ -45,7 +48,7 @@ SADE Zone entry workflow
 
 ---
 
-### MESSAGE: `<ENTRY_DECISION_MESSAGE_NAME>`
+#### MESSAGE: `<ENTRY_DECISION_MESSAGE_NAME>`
 
 **Caller:**  
 `<Component from diagram>`
@@ -72,7 +75,7 @@ SADE Zone entry decision
 
 ---
 
-### MESSAGE: `<ACTION_REQUIRED_MESSAGE_NAME>` (optional)
+#### MESSAGE: `<ACTION_REQUIRED_MESSAGE_NAME>` (optional)
 
 **Caller:**  
 `<Component from diagram>`
