@@ -8,7 +8,7 @@ The [**Request**] is one of three types:
   - Example 2: *REGION <Polygon>, 300m, 250m*
 - **ROUTE**: request permission to fly a specific route, defined by a series of waypoints, where each waypoint is defined as *latitude, longitude, altitude(ASL)*.
 
-![On-entry handshake](./svg/sade_entry.svg)
+![On-entry handshake](../figures/svg/sade_entry.svg)
 
 ## Entry Decision ##
 Entry decisions are made by the **SADE Agent** described here.
@@ -21,6 +21,7 @@ An entry decision includes the following response:
 - **ACTION-REQUIRED**: the request is denied pending specific actions and/or certifications.  Message is structured as *ACTION-ID,ACTION-REQUIRED,Action-List*. 
 - **DENIED**: request is denied. Message is structured as *DENIED,DENIAL_CODE,Explanation*.
   
+## Required Actions
 There are several types of actions that might be required. In each case, the action required will be clearly specified using pre-defined SADE syntax.  Actions include the following:
 - **Additional Evidence**: In this case, the reputation model alone has provided insufficient evidence that the Drone/Pilot/Organization is competent to complete its requested mission. Therefore additional evidence is required in the form of a *certificate*. The certificate is generated in one of two ways:
   - A person (e.g., pilot or other organizational representative) uses the *SafeCert* to produce a safety-case demonstrating the required competency. 
@@ -37,7 +38,7 @@ When additional competency evidence is requested, the Pilot/Organization will of
   - *SafeCert responds* by generating best-effort safety case and best-effort list of matching claims.
   - *Operator inspects* generated safety case and matching claims. If the operator deems that the claims do not match the needed evidence, they iteratively (a) collect additional evidence, (b) utilize *SafeCert* capabilities to enhance the safety case and generate a list of claims that is intended to match the evidence, and (c) inspect the results. This process continues either until *SafeCert* generates a list of claims from the safety case that match the required evidence, or the operator otherwise aborts the process.  If sufficient claims are generated, the operator signs-off on the safety-case and its subsequent claims, submits the safety-case to SADE BlockChain, receives a certificate, and submits the claims + certificate back to the SADE-Gateway in response to the *ACTION-REQUIRED* as *ACTION_ID, Certificate), where the Certificate includes the claims and the hash-code.  (Note: Need clarification on what was agreed here, but this will align with what ISU/Wenyi/Theo agreed).
 
-![Certificate needed](./svg/generate_certificate.svg)
+![Certificate needed](../figures/svg/generate_certificate.svg)
 
 ## Communicating Evidence Needs 
 The above interaction between the SAM-Gateway and the Drone|GCS is therefore predicated upon a request for action that includes a list depicting the *missing evidence*. We define this using a predefined set of keywords connected with a simple syntax.  
