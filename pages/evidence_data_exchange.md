@@ -1,4 +1,4 @@
-# Evidence Specification
+# Grammar supporting Evidence Requests and Responses
 
 ## Purpose
 
