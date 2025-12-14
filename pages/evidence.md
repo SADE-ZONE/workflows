@@ -159,11 +159,3 @@ INTERFACE:
 ```
 ---
 
-## Summary
-This evidence language provides:
-- A **minimal formal core** for requirements
-- A **clean extension** for attestations
-- Clear separation of syntax and semantics
-- A stable foundation for safety-case metadata
-- Compatibility with both human review and automation
-
