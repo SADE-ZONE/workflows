@@ -1,5 +1,6 @@
 # Site Overview
-This site documents the architecture and workflows of the SADE infrastructure.  For further project-level information please visit our public site [here](https://sites.nd.edu/uli-drone-reputations/)
+This site documents the architecture and workflows of the SADE infrastructure.  For further project-level information please visit our public site <a href="https://sites.nd.edu/uli-drone-reputations/" target="_blank" rel="noopener noreferrer">here</a>.
+
 
 #### SADE Architecture
 [Architecture](pages/architecture.md)
