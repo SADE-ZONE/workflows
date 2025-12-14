@@ -59,7 +59,8 @@ Examples:
 - `PAYLOAD(weight<=2kg) {status=SATISFIED, actual_max=7kg}`
 - `NIGHT_FLIGHT {status=SATISFIED, actual=true}`
 
-The original requirement constraint remains visible and auditable.
+The original requirement constraint remains visible and auditable in the attestation.
+
 ---
 
 ## Formal Grammar (EBNF)
