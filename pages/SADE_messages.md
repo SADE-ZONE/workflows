@@ -1,6 +1,8 @@
 # APIs and Message Formats
+| ⚠️ **TODO** |
+|-------------|
+| Discuss (@Theo,@Jane) sequence diagram flow and message format. Note: Where differences exist, we can adapt the syntax documented in this repo, but not the flow.  We will need to modify the flow according the these documented processes.|
 
-<span style="color:red;">TODO: Discuss (@Theo,@Jane) sequence diagram flow and message format.</span>
 
 SADE relies on structured message exchanges between architectural components.  
 Each message below is documented using a common template derived from the system’s sequence diagrams.  
