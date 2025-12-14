@@ -1,6 +1,10 @@
 # SADE Zone Architecture (High-Level)
 
-![SADE Zone architecture diagram](../figures/images/SADE-architecture.png)
+<img
+  src="../figures/images/SADE-architecture.png"
+  alt="SADE Zone architecture diagram"
+  width="900"
+/>
 
 This system supports **SADE Zone entry/exit decisions, monitoring, and post-mission reporting** for drone operations using a hybrid of local ground-control services and AWS cloud services.
 
