@@ -1,0 +1,23 @@
+sequenceDiagram
+  autonumber
+  participant SAM-Gateway
+  participant Drone|GCS
+  participant SafeCert
+  participant Operator
+  participant SAM-BlockChain
+  SAM-Gateway -->> Drone|GCS: ACTION-REQUIRED(evidence_needed)
+  Drone|GCS->> SafeCert: generate_evidence(safety-case, evidence_needed)
+  SafeCert ->> SafeCert: extract_claims()
+  SafeCert ->> Operator: display_results()
+  Operator ->> Operator: inspect()
+  loop 
+    Operator->>SafeCert: updateSafetyCase()
+    SafeCert->>SafeCert: analyzeSafetyCase()
+    SafeCert -->> Operator: displayUpdates()
+    Operator ->> Operator: inspectResult()
+  end
+  SafeCert ->> SAM-BlockChain: generateHash()
+  SAM-BlockChain -->> SafeCert: return(hash) 
+  SafeCert ->> Drone|GCS: sendCertificate(evidence, hash)
+  Drone|GCS ->> SAM-Gateway: requestEntry(ActionID, evidence, hash)
+
