@@ -126,7 +126,7 @@ The following fields are preliminary (we will evolve them):
 ---
 
 ## Semantic Layer 
-Meaning is defined via **semantic tables**, not grammar. Operators and regulators may extend these tables over time. Examples include the following. @TEAM please update.
+Meaning is defined via **semantic tables**, not grammar. Operators and regulators may extend these tables over time. Examples include the following. ⚠️ TO DO: **Fix these entries** and decide exactly what is in scope for the next 3 months and add as new rows. Goal: 20 initial rows? (Coordinate with ISU). 
 | Keyword       | Category      | Parameters             | Example Evidence Types |
 |---------------|---------------|------------------------|------------------------|
 | PART_107      | CERTIFICATION | Certificate ID         | FAA certificate        |
