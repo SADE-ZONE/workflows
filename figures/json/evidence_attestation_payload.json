@@ -1,0 +1,84 @@
+{
+  "type": "EVIDENCE_ATTESTATION",
+  "spec_version": "1.0",
+  "attestation_id": "ATT-0001",
+  "in_response_to": "REQ-0001",
+  "subject": {
+    "sade_zone_id": "ZONE-123",
+    "pilot_id": "PILOT-456",
+    "organization_id": "ORG-789",
+    "drone_id": "DRONE-001"
+  },
+  "categories": [
+    {
+      "category": "CERTIFICATION",
+      "requirements": [
+        {
+          "expr": "PART_107",
+          "keyword": "PART_107",
+          "params": [],
+          "meta": { "status": "SATISFIED", "cert_id": "107-ABCDE", "issuer": "FAA" }
+        },
+        {
+          "expr": "BVLOS(FAA)",
+          "keyword": "BVLOS",
+          "params": ["FAA"],
+          "meta": { "status": "SATISFIED", "waiver_id": "BVLOS-12345" }
+        }
+      ]
+    },
+    {
+      "category": "CAPABILITY",
+      "requirements": [
+        {
+          "expr": "NIGHT_FLIGHT",
+          "keyword": "NIGHT_FLIGHT",
+          "params": [],
+          "meta": { "status": "SATISFIED", "actual": true }
+        },
+        {
+          "expr": "PAYLOAD(weight<=2kg)",
+          "keyword": "PAYLOAD",
+          "params": [{ "key": "weight", "value": "<=2kg" }],
+          "meta": { "status": "SATISFIED", "actual_max": "7kg" }
+        }
+      ]
+    },
+    {
+      "category": "ENVIRONMENT",
+      "requirements": [
+        {
+          "expr": "MAX_WIND_GUST(28mph)",
+          "keyword": "MAX_WIND_GUST",
+          "params": ["28mph"],
+          "meta": { "status": "SATISFIED", "actual_limit": "30mph" }
+        }
+      ]
+    },
+    {
+      "category": "INTERFACE",
+      "requirements": [
+        {
+          "expr": "SADE_ATC_API(v1)",
+          "keyword": "SADE_ATC_API",
+          "params": ["v1"],
+          "meta": { "status": "PARTIAL", "actual": "v1.0" }
+        }
+      ]
+    }
+  ],
+  "signatures": [
+    {
+      "signer": "ORG-789",
+      "signature_type": "DIGITAL_SIGNATURE",
+      "signature_ref": "<opaque-reference>"
+    }
+  ],
+  "evidence_refs": [
+    {
+      "evidence_id": "EVID-001",
+      "kind": "DOCUMENT_OR_ARTIFACT",
+      "ref": "<opaque-reference>"
+    }
+  ]
+}
