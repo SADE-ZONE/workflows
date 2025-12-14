@@ -38,6 +38,7 @@ SADE Zone entry workflow
   "ORGANIZATION_ID": "",
   "DRONE_ID": "",
   "REQUESTED_ENTRY_TIME": "",
+  "DURATION":"",
   "REQUEST": {
     "TYPE": "ZONE | REGION | ROUTE",
     "DETAILS": {}
