@@ -5,16 +5,15 @@ This site documents the architecture and workflows of the SADE infrastructure.  
 #### SADE [Architecture](pages/architecture.md)
 The SADE architecture integrates local ground control, cloud-based UTM services, and trust infrastructure to manage safe drone entry, monitoring, and exit within regulated airspace zones. It combines real-time telemetry, rules-based decision-making, anomaly detection, and auditable certification to support accountable and scalable autonomous operations.
 
-#### Project[Glossary](pages/glossary.md) 
-Common project level terms.
-
 #### SADE Workflow:
-
-### SADE On-Entry:
-[](pages/entry_handshake.md)
-Describes the general flow of messages and function calls during an on-entry event. At the highest level, when a Drone|Pilot|Organization requests entry into the Sade Zone, the SAM_Agent will draw on currently available reputation data to make an initial decision.  IIF needed, it will request additional evidence of flight capability via an additional series of messages.  All requests and all subsequent data is provided using the Formal Language (see next section).
+The SADE workflow primarily includes three aspects:
+- **[Entry Request](pages/entry_handshake.md)** A SADE Zone entry request may be submitted by a drone or via an organization’s Ground Control Station and specifies the scope of access (entire zone, region, or route) along with required identifiers and timing. The SADE Agent evaluates the request and issues an entry decision that may approve the request with or without constraints, require specific actions, or deny access based on rules, reputation, and prior incidents. When additional evidence or mitigations are needed, these are provided through signed certifications or directed tests, with all evidence securely stored and cryptographically anchored for auditability.  
+- **In Zone Monitoring** While flying in the Zone, the SAM performs lightweight monitoring to check for Significant Observable problems (SIGOPs).  This data is collected and aggregated into a reputation model. Upon exit from a Zone, flight data is aggregated as a transaction into the [reputation model](pages/reputation.md). 
+- **User Interactions** SADE Zone users are able to view their records [respond to documented SIGOPs](pages/user_response.md) and to voluntarily [report](pages/voluntary_reporting.md) previously unobserved SIGOPS.
 
 ### Formal Language for Data Requests and Evidence
 [Requirements and Evidence Grammar](pages/evidence.md)
 The SAM-Gateway will use a subset of this language to request evidence, and the Drone|GCS (using services of SafeCert) will provide evidence as meta-data attached to an uploaded certificate using the same language extended to include claims extracted from the safety case.
 
+#### Project [Glossary](pages/glossary.md) 
+Common project level terms.
