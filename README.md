@@ -14,7 +14,7 @@ The SADE workflow includes the following critical elements:
 ## Major Solution Elements
 - **Decision making**: Decision making responsibility is assigned to the *SAM Decision-Making Agent*, which retrieves information from the SADE Manager about the operating environment, retrieves information from the reputation model, and, when needed, requests additional information from the Drone|GCS|organization. The agentic approach allows consideration from these heterogenous data sources.
 - **Common Data Description Language**: To facilitate this cooperation across the Decision-Maker, Reputation Model, SafeCert, and Proving ground, SADE uses a common specification language to request and provide evidence.  [Link](pages/evidence.md).
-- **Runtime Monitoring and Reputation Modeling**: 
+- **Runtime Monitoring and Reputation Modeling**: [link](pages/reputation_modeling.md)
 - **SafeCert**: [link](pages/certification.md)
 - **Proving Ground**: [link](pages/proving_ground.md)
 - **Project Glossary**: [link](pages/glossary.md) 
