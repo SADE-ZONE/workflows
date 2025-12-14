@@ -11,10 +11,12 @@ The SADE workflow includes the following critical elements:
 - **In Zone Monitoring:** While flying in the Zone, the SAM performs lightweight monitoring to check for Significant Observable problems (SIGOPs).  This data is collected and aggregated into a **reputation model**. Upon exit from a Zone, flight data is aggregated as a transaction into the [reputation model](pages/reputation.md).
 - **User Interaction:** SADE Zone users are able to view their records [respond to documented SIGOPs](pages/user_response.md) and to voluntarily [report](pages/voluntary_reporting.md) previously unobserved SIGOPS.
 
-#### 
-### Formal Language for Data Requests and Evidence
-[Requirements and Evidence Grammar](pages/evidence.md)
-The SAM-Gateway will use a subset of this language to request evidence, and the Drone|GCS (using services of SafeCert) will provide evidence as meta-data attached to an uploaded certificate using the same language extended to include claims extracted from the safety case.
+## Major Solution Elements
+- **Formal Language for Data Requests and Evidence**: [Link](pages/evidence.md) to Requirements and Evidence Grammar. The SAM-Gateway will use a subset of this language to request evidence, and the Drone|GCS (using services of SafeCert) will provide evidence as meta-data attached to an uploaded certificate using the same language extended to include claims extracted from the safety case.
 
-#### Project [Glossary](pages/glossary.md) 
+- **SafeCert**: [link](pages/certification.md)
+
+- **Proving Ground**: [link](pages/proving_ground.md)
+
+- **Project Glossary**: [link](pages/glossary.md) 
 Common project level terms.
