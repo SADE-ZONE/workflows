@@ -38,6 +38,8 @@ When additional competency evidence is requested, the Pilot/Organization will of
   - *SafeCert responds* by generating best-effort safety case and best-effort list of matching claims.
   - *Operator inspects* generated safety case and matching claims. If the operator deems that the claims do not match the needed evidence, they iteratively (a) collect additional evidence, (b) utilize *SafeCert* capabilities to enhance the safety case and generate a list of claims that is intended to match the evidence, and (c) inspect the results. This process continues either until *SafeCert* generates a list of claims from the safety case that match the required evidence, or the operator otherwise aborts the process.  If sufficient claims are generated, the operator signs-off on the safety-case and its subsequent claims, submits the safety-case to SADE BlockChain, receives a certificate, and submits the claims + certificate back to the SADE-Gateway in response to the *ACTION-REQUIRED* as *ACTION_ID, Certificate), where the Certificate includes the claims and the hash-code.  (Note: Need clarification on what was agreed here, but this will align with what ISU/Wenyi/Theo agreed).
 
+(Note: ⚠️ Just met with Theo, and I will update the following sequence diagram to reflect that the AWS service is responsible for requesting the hash.  Will fix tonight!)
+
 ![Certificate needed](../figures/svg/generate_certificate.svg)
 
 ## Communicating Evidence Needs 
