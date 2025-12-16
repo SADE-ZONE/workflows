@@ -10,3 +10,7 @@ Data will be received in a steady-stream of status messages from each drone.  Ea
 2. **Airspace Violation**: There are many types of airspace violation that we need to monitor for including the following:
    1. ***Drone flies into restricted airspace***: Each SADE zone needs to provide a list of restricted airspace.
    2. ***Drones fly directly above or below one another***: Drones must never fly directly over each other.
+3. **Health**:
+   1. ***Excessive vibration***: A clear indicator of low health
+   2. ***Sudden changes in attitude**:
+   3. ***Low battery**:
