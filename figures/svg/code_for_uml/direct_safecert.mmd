@@ -1,0 +1,26 @@
+sequenceDiagram
+  autonumber
+  participant Drone-Operator
+  participant SAM-Gateway
+  participant SAM-Entry-Agent
+  participant Environmental-Shadow
+  participant Reputation-Model
+  Drone-Operator->>SAM-Gateway: requestEntry(ZoneID, PilotID, OrgID, DroneID, SafeCert_access, EntryTime,Request)
+  SAM-Gateway ->> SAM-Entry-Agent: requestEntry(PilotID, OrgID, DroneID, SafeCert_access, EntryTime,Request)
+  SAM-Entry-Agent ->> Environmental-Shadow: retrieveEnvironment(..)
+  Environmental-Shadow -->> SAM-Entry-Agent: WEATHER|LIGHTING|AIRSPACE 
+  SAM-Entry-Agent ->> Reputation-Model: retrieve_reputations(PilotID, OrgID, DroneID)
+  Reputation-Model -->> SAM-Entry-Agent: PILOT|ORG|DRONE reputations
+  SAM-Entry-Agent ->> SAM-Entry-Agent: analysis_and_decision()
+  alt Conditional-Admit
+     SAM-Entry-Agent->>SafeCert: request_attestation(safecert-pin,evidence_required)
+     SafeCert->>SAM-Entry-Agent: response(satisfied=True|False, attestation)
+     SAM-Entry-Agent ->> SAM-Entry-Agent: evaluate_response(evidence_required, attestation)
+     alt not-satisfied
+         SafeCert->>Drone-Operator: notify("Conditional",evidence_required))
+     end
+     alt if-satisfied
+         SafeCert->>Drone-Operator: notify("Admit")
+     end
+  end
+    
