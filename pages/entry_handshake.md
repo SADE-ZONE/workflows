@@ -42,7 +42,7 @@ When additional competency evidence is requested, the Pilot/Organization will of
 
 ## Alternative Flow (Thanks to Taeho for this suggestion)
 The two sequence diagrams currently show that all communication with *SafeCert* is via the Organization managing the drone. However, one alternative flow that we are considering will allow fast-track communication from the SAM-Entry agent with the SafeCert provider.  In this case, the Organization would send a key with their on-entry request, and the SAM-Entry agent could send a REQUEST for attestation directly to the SafeCert provider.  If the existing safety-cases are sufficient for satisfying the request, then an Attestation is generated and returned directly.  Otherwise, the normal route via the Organization is resumed, allowing for human-updates of the SafetyCases.
-
+![On-entry handshake](../figures/svg/di.svg)
 ## Communicating Evidence Needs 
 The above interaction between the SAM-Gateway and the Drone|GCS is therefore predicated upon a request for action that includes a list depicting the *missing evidence*. We define this using a formal [grammar](evidence_data_exchange.md).
 
