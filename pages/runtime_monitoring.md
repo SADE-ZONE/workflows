@@ -12,5 +12,5 @@ Data will be received in a steady-stream of status messages from each drone.  Ea
    2. ***Drones fly directly above or below one another***: Drones must never fly directly over each other.
 3. **Health**:
    1. ***Excessive vibration***: A clear indicator of low health
-   2. ***Sudden changes in attitude**:
-   3. ***Low battery**:
+   2. ***Sudden changes in attitude***:
+   3. ***Low battery***:
