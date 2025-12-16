@@ -1,16 +1,16 @@
 sequenceDiagram
   autonumber
-  participant Drone|GCS
+  participant Drone-Operator
   participant SAM-Gateway
   participant SAM-Entry-Agent
   participant Environmental-Shadow
   participant Reputation-Model
-  Drone|GCS->>SAM-Gateway: requestEntry(ZoneID, PilotID, OrgID, DroneID,EntryTime,Request)
+  Drone-Operator->>SAM-Gateway: requestEntry(ZoneID, PilotID, OrgID, DroneID,EntryTime,Request)
   SAM-Gateway ->> SAM-Entry-Agent: requestEntry(PilotID, OrgID, DroneID,EntryTime,Request)
   SAM-Entry-Agent ->> Environmental-Shadow: retrieveEnvironment(..)
   Environmental-Shadow -->> SAM-Entry-Agent: WEATHER|LIGHTING|AIRSPACE 
   SAM-Entry-Agent ->> Reputation-Model: retrieve_reputations(PilotID, OrgID, DroneID)
   Reputation-Model -->> SAM-Entry-Agent: PILOT|ORG|DRONE reputations
   SAM-Entry-Agent ->> SAM-Entry-Agent: analysis_and_decision()
-  SAM-Entry-Agent -->> SAM-Gateway: APPROVED | APPROVED-CONSTRAINTS | ACTION-REQUIRED | DENIED
-  SAM-Gateway-->> Drone|GCS: APPROVED | APPROVED-CONSTRAINTS | ACTION-REQUIRED | DENIED
+  SAM-Entry-Agent -->> SAM-Gateway: notify_decision(approved, denied, conditional)
+  SAM-Gateway-->> Drone-Operator: notify_decision(approved, denied, conditional)

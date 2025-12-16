@@ -2,25 +2,25 @@ sequenceDiagram
   autonumber
   participant SAM-BlockChain
   participant SAM-Gateway
-  participant Drone|GCS
+  participant SAM-Entry-Agent
+  participant Drone-Operator
   participant SafeCert
-  participant Operator
-  SAM-Gateway -->> Drone|GCS: ACTION-REQUIRED(ActionID, evidence_needed)
-  Drone|GCS->> SafeCert: generate_evidence(safety-case, evidence_needed)
-  SafeCert ->> SafeCert: extract_claims()
-  SafeCert ->> Operator: display_results()
-  Operator ->> Operator: inspect()
-  loop 
-    Operator->>SafeCert: updateSafetyCase()
-    SafeCert->>SafeCert: analyzeSafetyCase()
-    SafeCert -->> Operator: displayUpdates()
-    Operator ->> Operator: inspectResult()
+  participant SafeCert-User
+  Note right of SAM-Gateway: Activated by 'conditional' entry decision
+  SAM-Gateway -->> Drone-Operator: notify(decision_ID,evidence_required)
+  Drone-Operator ->> SafeCert: generate_evidence(evidence_required)
+  SafeCert ->> SafeCert: extract_relevant_claims()
+  SafeCert ->> SafeCert: check_satisfaction()
+  loop until-satisfied
+    SafeCert->>SafeCert-User: display_results()
+    SafeCert-User->>SafeCert: updateSafetyCases()
+    SafeCert ->> SafeCert: extract_relevant_claims()
   end
-  SafeCert ->> Drone|GCS: sendCertificate(safety_case, attestation)
-  Drone|GCS ->> SAM-Gateway: requestEntry(safety_case,attestation)
-  SAM-Gateway ->> SAM-BlockChain: generateHash(safety_case,attestation)
-  SAM-BlockChain -->> SAM-Gateway: HASH
+  SafeCert ->> Drone-Operator: sendCertificate(updated_safety_case, attestation)
+  Drone-Operator ->> SAM-Gateway: requestEntry(updated_safety_case,attestation)
+  SAM-Gateway ->> SAM-BlockChain: generateHash(updated_safety_case,attestation)
+  SAM-BlockChain -->> SAM-Gateway: return(hash)
   SAM-Gateway ->> SAM-Entry-Agent: requestEntry(ActionID,attestation)
-  SAM-Entry-Agent ->> SAM-Entry-Agent: Analysis_and_Decision(evidence_needed,attestation)
-  SAM-Entry-Agent -->>SAM-Gateway: APPROVED|DENIED|ACTION-REQUIRED
-  SAM-Gateway --> Drone|GCS: APPROVED|DENIED|ACTION-REQUIRED
+  SAM-Entry-Agent ->> SAM-Entry-Agent: make_entry_decision(decision_ID,attestation)
+  SAM-Entry-Agent -->>SAM-Gateway: return(Approved|Denied|Conditional)
+  SAM-Gateway ->> Drone-Operator: notify_decision(Approved|Denied|Conditional)
