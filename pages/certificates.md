@@ -78,18 +78,18 @@ These certificates are based on the operator's certifications and preparations f
     - (V, bool, I): Whether the pilot has a Part 107 certificate. *(NB: This could also be the date of the last certification, and we check to see if that has been in the last 24 months.)*
 - (C) `<BVLOS>`: Is the drone flying BVLOS? Can it fly BVLOS? *(NB: all of the variables in this certificate are currently boolean. This is basically a checklist of whether you will do these things. This could change in the future.)*
     - (C) `<BVLOS_Equipment>`:
-        - (V, bool, I): Be able to receive ADS-B signals (either on board or on the ground)
-        - (V, bool, I): Have a functioning Detect and Avoid system on board
-        - (V, bool, I): Have functioning Remote ID that can transmit a BVLOS status message
-        - (V, bool, I): Have functioning anti-collision lighting onboard the aircraft
-        - (V, bool, I): The UAS must be in a safe and airworthy condition
+        - (V, bool, I) `<adsb_receive>`: Be able to receive ADS-B signals (either on board or on the ground)
+        - (V, bool, I) `<detect_and_avoid>`: Have a functioning Detect and Avoid system on board
+        - (V, bool, I) `<remote_id>`: Have functioning Remote ID that can transmit a BVLOS status message
+        - (V, bool, I) `<lighting>`: Have functioning anti-collision lighting onboard the aircraft
+        - (V, bool, I) `<safe_and_airworthy>`: The UAS must be in a safe and airworthy condition
     - (C) `<BVLOS_Operational_Rules>`:
-        - (V, bool, I): Avoid areas with large numbers of people on the ground
-        - (V, bool, I): Have knowledge of NOTAMS and airspace along entire route
-        - (V, bool, I): Yield right-of-way to aircraft broadcasting ADS-B Out
-        - (V, bool, I): Avoid all high-traffic areas for other aircraft (such as airports, etc.)
+        - (V, bool, I) `<avoid_people>`: Avoid areas with large numbers of people on the ground
+        - (V, bool, I) `<notams>`: Have knowledge of NOTAMS and airspace along entire route
+        - (V, bool, I) `<yield_right_of_way>`: Yield right-of-way to aircraft broadcasting ADS-B Out
+        - (V, bool, I) `<avoid_air_traffic>`: Avoid all high-traffic areas for other aircraft (such as airports, etc.)
     - (C) `<Operator_Requirements>`:
-        - (V, bool, I): The operator should have received training on safe BVLOS flying. 
-        - (V, bool, I): The operator should have backup landing sites along the planned flight path.
+        - (V, bool, I) `<bvlos_training>`: The operator should have received training on safe BVLOS flying. 
+        - (V, bool, I) `<backup_landing>`: The operator should have backup landing sites along the planned flight path.
 - (C) `<Observers>`: Certificate related the flight observers (if required)
     - (V, bool, I) `<has_observers>`: Whether the flight has observers. 
