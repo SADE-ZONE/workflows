@@ -20,7 +20,7 @@ These certificates are based on the ability of the drone to fly.
     - (V, float, I) `<drone_max_wind_speed>`: The drone's maximum allowed wind speed
     - (V, float, I) `<pilot_wind_ability>`: The pilot's comfort level with wind speed, as represented by the allowed percentage of max wind speed [0% to 100%]
     - (V, float, E) `<current_wind_speed>`
-- (C): Temperature
+- (C) `<Temperature>`: 
     - (V, float, I) `<min_temp>`: Min temp allowed by the drone
     - (V, float, I) `<max_temp>`: Max temp allowed by the drone
     - (V, float, E) `<current_temp>`: Current temp
