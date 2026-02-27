@@ -5,6 +5,9 @@ This site documents the architecture and workflows of the SADE infrastructure.  
 #### Architecture ([link](pages/architecture.md)).
 The SADE architecture integrates local ground control, cloud-based UTM services, and trust infrastructure to manage safe drone entry, monitoring, and exit within regulated airspace zones. It combines real-time telemetry, rules-based decision-making, anomaly detection, and auditable certification to support accountable and scalable autonomous operations.
 
+### Datasets: 
+SADE Zone consumes, build and records several datasets that supports entry decisions. You can find a preliminary view of this dataset [here](https://github.com/SADE-ZONE/workflows/blob/main/pages/CORE_DATA_MODEL_ATTRIBUTES.md)
+
 #### Workflow: ⚠️ Note: This is important critical path.
 The SADE workflow includes the following critical elements:
 - **Entry Request:** A [SADE Zone entry request](./pages/entry_handshake.md) may be submitted by a drone or via an organization’s Ground Control Station and specifies the scope of access (entire zone, region, or route) along with required identifiers and timing. The SADE Agent evaluates the request and issues an entry decision that may approve the request with or without constraints, require specific actions, or deny access based on rules, reputation, and prior incidents. When additional evidence or mitigations are needed, these are provided through [signed certifications](./pages/certificates.md) or directed tests in a [proving ground](pages/proving_ground.md), with all evidence securely stored and cryptographically anchored for auditability.  
