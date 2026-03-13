@@ -1,12 +1,14 @@
 # SADE Overview 
 This site documents the architecture and workflows of the SADE infrastructure.  For further project-level information please visit our public site <a href="https://sites.nd.edu/uli-drone-reputations/" target="_blank" rel="noopener noreferrer">here</a>.
 
+> [!IMPORTANT]
+> SADE-Prototype is now hosted in AWS and available as a live system. Client-facing documentation is available in [sade_aws_api](./sade_aws_api/). The best starting point is the [operator lifecycle guide](./sade_aws_api/OPERATOR_LIFECYCLE.md), which explains how entry requests, status polling, attestation follow-up, and closure work end to end. Endpoint and payload details are documented in the [API reference](./sade_aws_api/API_REFERENCE.md).
+
+
 
 #### Architecture ([link](pages/architecture.md)).
 The SADE architecture integrates local ground control, cloud-based UTM services, and trust infrastructure to manage safe drone entry, monitoring, and exit within regulated airspace zones. It combines real-time telemetry, rules-based decision-making, anomaly detection, and auditable certification to support accountable and scalable autonomous operations.
 
-### Datasets: 
-SADE Zone consumes, build and records several datasets that supports entry decisions. You can find a preliminary view of this dataset [here](https://github.com/SADE-ZONE/workflows/blob/main/pages/CORE_DATA_MODEL_ATTRIBUTES.md)
 
 #### Workflow: ⚠️ Note: This is important critical path.
 The SADE workflow includes the following critical elements:
