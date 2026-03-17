@@ -2,7 +2,7 @@
 This site documents the architecture and workflows of the SADE infrastructure.  For further project-level information please visit our public site <a href="https://sites.nd.edu/uli-drone-reputations/" target="_blank" rel="noopener noreferrer">here</a>.
 
 > [!IMPORTANT]
-> SADE-Prototype is now hosted in AWS and available as a live system. Client-facing documentation is available in [sade_aws_api](./pages/SADE_WAS_API/). The best starting point is the [operator lifecycle guide](./pages/SADE_WAS_API/OPERATOR_LIFECYCLE.md), which explains how entry requests, status polling, attestation follow-up, and closure work end to end. Endpoint and payload details are documented in the [API reference](./pages/SADE_WAS_API/API_REFERENCE.md).
+> SADE-Prototype is now hosted in AWS and available as a live system. Client-facing documentation is available in [sade_aws_api](./pages/SADE_AWS_API/). The best starting point is the [operator lifecycle guide](./pages/SADE_AWS_API/OPERATOR_LIFECYCLE.md), which explains how entry requests, status polling, attestation follow-up, and closure work end to end. Endpoint and payload details are documented in the [API reference](./pages/SADE_AWS_API/API_REFERENCE.md).
 
 
 
