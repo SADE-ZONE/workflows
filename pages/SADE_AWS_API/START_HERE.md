@@ -4,9 +4,9 @@ Status date: 2026-03-09
 
 If you are integrating with the deployed SADE AWS API, read these in order:
 
-1. [`OPERATOR_LIFECYCLE.md`](/Users/tonyalarcon/repos/sade/sade-prototype/documentation/client/OPERATOR_LIFECYCLE.md)
-2. [`API_REFERENCE.md`](/Users/tonyalarcon/repos/sade/sade-prototype/documentation/client/API_REFERENCE.md)
-3. [`IDEMPOTENCY_RECOMMENDATIONS.md`](/Users/tonyalarcon/repos/sade/sade-prototype/documentation/client/IDEMPOTENCY_RECOMMENDATIONS.md)
+1. [`OPERATOR_LIFECYCLE.md`](./OPERATOR_LIFECYCLE.md)
+2. [`API_REFERENCE.md`](./API_REFERENCE.md)
+3. [`IDEMPOTENCY_RECOMMENDATIONS.md`](./IDEMPOTENCY_RECOMMENDATIONS.md)
 
 ## What each document gives you
 
