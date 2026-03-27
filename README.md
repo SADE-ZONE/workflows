@@ -23,6 +23,6 @@ The SADE workflow includes the following critical elements:
 - **SafeCert**: [link](./pages/certificates.md)
 - **Proving Ground**: [link](./pages/proving_ground.md)
 - **User Input**: [link](./pages/mitigation_report.md) Users can respond to incidents captured in their reputation models and voluntarily report incidents.
-- **Block Chain**: SADE uses blockchain to create non-repudiable, privacy-preserving records. While much of the SADE data is stored in a dataset, we store hashes for certificates and reputation model entries. 
+- **BlockChain**: SADE uses blockchain to create non-repudiable, privacy-preserving records. While much of the SADE data is stored in a dataset, we store hashes for certificates and reputation model entries. [Blockchain for SADE explained.](./pages/blockchain.md).
 - **Project Glossary**: [link](./pages/glossary.md) 
 
