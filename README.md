@@ -1,6 +1,10 @@
 # SADE Overview 
 This site documents the architecture and workflows of the SADE infrastructure.  For further project-level information please visit our public site <a href="https://sites.nd.edu/uli-drone-reputations/" target="_blank" rel="noopener noreferrer">here</a>.
 
+> [!IMPORTANT]
+> SADE-Prototype is now hosted in AWS and available as a live system. Client-facing documentation is available in [sade_aws_api](./pages/SADE_AWS_API/). The best starting point is the [operator lifecycle guide](./pages/SADE_AWS_API/OPERATOR_LIFECYCLE.md), which explains how entry requests, status polling, attestation follow-up, and closure work end to end. Endpoint and payload details are documented in the [API reference](./pages/SADE_AWS_API/API_REFERENCE.md).
+
+
 
 #### Architecture ([link](pages/architecture.md)).
 The SADE architecture integrates local ground control, cloud-based UTM services, and trust infrastructure to manage safe drone entry, monitoring, and exit within regulated airspace zones. It combines real-time telemetry, rules-based decision-making, anomaly detection, and auditable certification to support accountable and scalable autonomous operations.
@@ -25,6 +29,6 @@ The SADE workflow includes the following critical elements:
 - **SafeCert**: [link](./pages/certificates.md)
 - **Proving Ground**: [link](./pages/proving_ground.md)
 - **User Input**: [link](./pages/mitigation_report.md) Users can respond to incidents captured in their reputation models and voluntarily report incidents.
-- **Block Chain**: SADE uses blockchain to create non-repudiable, privacy-preserving records. While much of the SADE data is stored in a dataset, we store hashes for certificates and reputation model entries. 
+- **BlockChain**: SADE uses blockchain to create non-repudiable, privacy-preserving records. While much of the SADE data is stored in a dataset, we store hashes for certificates and reputation model entries. [Blockchain for SADE explained.](./pages/blockchain.md).
 - **Project Glossary**: [link](./pages/glossary.md) 
 
