@@ -44,7 +44,8 @@ Suggested request example:
     "name": "DJI Mavic 3",
     "max_wind_tolerance": 22.5,
     "max_temp_f": 110.0,
-    "min_temp_f": -10.0
+    "min_temp_f": -10.0,
+    "max_payload_cap_lbs": 5
   },
   "pilot": {
     "pilot_id": "pilot-001",
