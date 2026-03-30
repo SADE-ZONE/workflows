@@ -11,10 +11,10 @@ This is the client-facing API contract for teams integrating with the deployed S
 ## Common rules
 
 1. `POST` endpoints require `Content-Type: application/json`.
-2. Workflow `POST` endpoints require `idempotency_key`.
+2. Workflow `POST` endpoints require `idempotency_key`, except `POST /tracker-session-finalized`, which deduplicates by `flight_session_id`.
 3. Async workflow `POST` endpoints return a receipt first, not the final business outcome.
 4. `POST /entry-request` and `POST /attestation-submission` return `RequestReceipt` with HTTP `202` on acceptance.
-5. `POST /exit-request` and `POST /tracker-session-finalized` remain synchronous and return their final result contracts.
+5. `POST /tracker-session-finalized` remains synchronous and returns its final result contract.
 6. Validation/transport errors use HTTP `400` or `500`.
 
 This async design is deliberate.
@@ -293,9 +293,88 @@ This is intentional, not temporary. The endpoint acknowledges durable workflow a
   "drone_id": "drone-001",
   "sade_zone_id": "zone-001",
   "organization_id": "org-001",
+  "notifications": {
+    "entry_request_updates": {
+      "enabled": true,
+      "transport": "MQTT"
+    }
+  },
   "requested_entry_time": "2026-03-09T18:00:00Z",
   "requested_exit_time": "2026-03-09T19:00:00Z",
   "request_time": "2026-03-09T17:55:00Z",
+  "requested_operation": {
+    "operation_type": "INSPECTION",
+    "priority": "NORMAL"
+  },
+  "test_overrides": {
+    "decision_maker": {
+      "force_decision": "ACTION_REQUIRED"
+    },
+    "weather_service": {
+      "forecast": {
+        "sade_zone_id": "zone-001",
+        "window_start": "2026-03-09T18:00:00Z",
+        "window_end": "2026-03-09T19:00:00Z",
+        "max_wind_knots": 18.0,
+        "max_gust_knots": 24.0,
+        "min_temp_f": 42.0,
+        "max_temp_f": 47.0,
+        "precipitation_summary": "none",
+        "visibility_min_nm": 8.0,
+        "source": "TEST_OVERRIDE",
+        "confidence": 1.0,
+        "generated_at": "2026-03-09T17:55:00Z"
+      }
+    }
+  }
+}
+```
+
+Optional test-only override hook (inside top-level `test_overrides`):
+
+- `decision_maker.force_decision`: `APPROVED`, `APPROVED_CONSTRAINTS`, `DENIED`, `ACTION_REQUIRED`, `NONE`, `RAISE`
+- `decision_maker.evidence_requirement_spec`: optional requirement override for forced `ACTION_REQUIRED` stub responses
+- `weather_service.forecast`: temporary override payload consumed by the no-op environmental service in local/dev flows
+
+Example override shape:
+
+```json
+{
+  "test_overrides": {
+    "decision_maker": {
+      "force_decision": "ACTION_REQUIRED",
+      "evidence_requirement_spec": {
+        "categories": [
+          {
+            "category": "CUSTOM_CATEGORY",
+            "requirements": [
+              {
+                "expr": "SPECIAL_REVIEW",
+                "keyword": "SPECIAL_REVIEW",
+                "params": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "weather_service": {
+      "forecast": {
+        "sade_zone_id": "zone-001",
+        "window_start": "2026-03-09T18:00:00Z",
+        "window_end": "2026-03-09T19:00:00Z",
+        "max_wind_knots": 18.0,
+        "max_gust_knots": 24.0,
+        "min_temp_f": 42.0,
+        "max_temp_f": 47.0,
+        "precipitation_summary": "none",
+        "visibility_min_nm": 8.0,
+        "source": "TEST_OVERRIDE",
+        "confidence": 1.0,
+        "generated_at": "2026-03-09T17:55:00Z"
+      }
+    }
+  },
   "requested_operation": {
     "operation_type": "INSPECTION",
     "priority": "NORMAL"
@@ -303,36 +382,16 @@ This is intentional, not temporary. The endpoint acknowledges durable workflow a
 }
 ```
 
-Optional test-only forcing hook (inside `requested_operation`):
+This is a testing hook for the temporary stubbed integrations. It is useful when the SafeCert or Decision Maker teams want to exercise deterministic paths without changing SADE code.
 
-- `force_decision`: `APPROVED`, `APPROVED_CONSTRAINTS`, `DENIED`, `ACTION_REQUIRED`, `NONE`, `RAISE`
-- when `force_decision` is `ACTION_REQUIRED`, you may also provide `evidence_requirement_spec.categories` to override the stub's default requirement categories for SafeCert testing
+When `decision_maker.force_decision` is `ACTION_REQUIRED`, you may provide `decision_maker.evidence_requirement_spec.categories` to override the stub's default requirement categories for SafeCert testing.
 
-Example override shape:
+Optional notifications:
 
-```json
-{
-  "requested_operation": {
-    "force_decision": "ACTION_REQUIRED",
-    "evidence_requirement_spec": {
-      "categories": [
-        {
-          "category": "CUSTOM_CATEGORY",
-          "requirements": [
-            {
-              "expr": "SPECIAL_REVIEW",
-              "keyword": "SPECIAL_REVIEW",
-              "params": []
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
-
-This is a testing hook for the stub decision adapter. It is useful when the SafeCert team wants to exercise different evidence requirement sets without changing SADE code.
+- include `notifications.entry_request_updates.enabled=true` to request MQTT workflow notifications
+- when accepted, SADE returns the derived topic in the receipt
+- the topic is derived by SADE; callers do not provide a topic string
+- `status_url` remains authoritative even when notifications are enabled
 
 </details>
 
@@ -348,7 +407,16 @@ Accepted (HTTP 202):
   "message": "Entry request accepted for processing.",
   "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
   "action_id": null,
-  "status_url": "/entry-requests/8af4f8f3-5429-4d80-805d-2f6dc3f72159"
+  "status_url": "/entry-requests/8af4f8f3-5429-4d80-805d-2f6dc3f72159",
+  "notifications": {
+    "entry_request_updates": {
+      "enabled": true,
+      "transport": "MQTT",
+      "topic": "notifications/entry/orgs/org-001/8af4f8f3-5429-4d80-805d-2f6dc3f72159",
+      "retain": true,
+      "qos": 1
+    }
+  }
 }
 ```
 
@@ -380,6 +448,12 @@ This status resource is the operator-facing source of truth for the async entry 
 1. scripts can poll it
 2. a web UI can refresh or subscribe to it
 3. long-running decision and attestation work does not need to block the original POST
+
+If MQTT notifications were enabled on the request:
+
+1. subscribe to the exact topic returned in the acceptance receipt
+2. expect retained summary notifications for `APPROVED`, `APPROVED_CONSTRAINTS`, `ACTION_REQUIRED`, and `DENIED`
+3. do not treat MQTT as authoritative; always use `status_url` for full workflow state
 
 <details>
 <summary>Status response example (HTTP 200)</summary>
@@ -420,50 +494,17 @@ This status resource is the operator-facing source of truth for the async entry 
 }
 ```
 
-</details>
-
-### `POST /exit-request`
-
-Signals operator intent to end a session.  
-This does not finalize a session by itself; tracker finalization is required.
-
-<details>
-<summary>Request example</summary>
+Another rejected example:
 
 ```json
 {
-  "idempotency_key": "f3e1a531-bf7e-469f-bdb4-b67f44d4af66",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "drone_id": null,
-  "sade_zone_id": null,
-  "request_time": "2026-03-09T19:10:00Z"
-}
-```
-
-`flight_session_id` can be omitted if `drone_id` + `sade_zone_id` are provided.
-
-</details>
-
-<details>
-<summary>Scenario responses (HTTP 200)</summary>
-
-Accepted intent (not final closeout):
-
-```json
-{
-  "status": "REQUESTED",
-  "reason": "Exit requested; awaiting tracker finalization.",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834"
-}
-```
-
-Business failed:
-
-```json
-{
-  "status": "FAILED",
-  "reason": "No active session found for exit request.",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834"
+  "status": "REJECTED",
+  "request_kind": "ENTRY_REQUEST",
+  "message": "Requested window overlaps an existing pending or planned request for the same drone and pilot.",
+  "failure_code": "OVERLAPPING_SCHEDULING_SUBJECT_WINDOW",
+  "evaluation_series_id": null,
+  "action_id": null,
+  "status_url": null
 }
 ```
 
@@ -714,14 +755,14 @@ Use the `status_url` from `POST /attestation-submission`.
 ### `POST /tracker-session-finalized`
 
 Tracker-authoritative closeout endpoint.  
-Use this to finalize an in-zone session and persist final telemetry for reputation.
+Use this to finalize a planned session and persist final telemetry for reputation.
+Idempotency is keyed by `flight_session_id`.
 
 <details>
 <summary>Request example</summary>
 
 ```json
 {
-  "idempotency_key": "13a32797-c9ab-47aa-96d2-b9c11ef36e77",
   "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
   "report_time": "2026-03-09T19:05:00Z",
   "actual_start_time": "2026-03-09T18:00:00Z",
@@ -775,7 +816,6 @@ Business failed:
 - `GET /entry-requests/{evaluation_series_id}`
 - `POST /attestation-submission`
 - `GET /actions/{action_id}`
-- `POST /exit-request`
 - `POST /tracker-session-finalized`
 - `POST /registry/uav-model`
 - `POST /registry/uav`

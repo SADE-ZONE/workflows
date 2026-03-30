@@ -33,6 +33,18 @@ Possible outcomes:
 After acceptance, read `GET /entry-requests/{evaluation_series_id}` using the `status_url`.
 If the workflow becomes action-required, the status response will include `action_required.action_id`.
 
+Optional MQTT notifications:
+
+1. Include `notifications.entry_request_updates.enabled=true` on `POST /entry-request` to request operator notifications.
+2. If accepted, the receipt will include `notifications.entry_request_updates.topic`.
+3. Subscribe to that exact topic if you want the retained latest summary for this workflow.
+4. MQTT notifications are convenience signals only; `GET /entry-requests/{evaluation_series_id}` remains the authoritative state source.
+5. SADE does not publish an MQTT message for the initial `ACCEPTED` receipt state. Current publishable entry outcomes are:
+   - `APPROVED`
+   - `APPROVED_CONSTRAINTS`
+   - `ACTION_REQUIRED`
+   - `DENIED`
+
 Why this is asynchronous by design:
 
 1. Entry evaluation can take variable time even before SafeCert is involved.
@@ -44,7 +56,7 @@ Why this is asynchronous by design:
 
 ## 3) Force decisions for testing
 
-In `requested_operation`, set `force_decision` to drive deterministic test behavior.
+In top-level `test_overrides.decision_maker`, set `force_decision` to drive deterministic test behavior.
 
 Supported values:
 
@@ -52,27 +64,37 @@ Supported values:
 2. `APPROVED_CONSTRAINTS`
 3. `DENIED`
 4. `ACTION_REQUIRED`
-5. `NONE` (simulates no adapter output, returns failed business outcome)
-6. `RAISE` (simulates adapter exception, returns failed business outcome)
+5. `NONE` (simulates Decision Maker returning no usable result, returns failed business outcome)
+6. `RAISE` (simulates Decision Maker processing failure, returns failed business outcome)
 
 Example snippet:
 
 ```json
 {
+  "test_overrides": {
+    "decision_maker": {
+      "force_decision": "ACTION_REQUIRED"
+    }
+  },
   "requested_operation": {
     "operation_type": "INSPECTION",
-    "priority": "NORMAL",
-    "force_decision": "ACTION_REQUIRED"
+    "priority": "NORMAL"
   }
 }
 ```
 
 SafeCert testing hook:
 
-1. When `force_decision` is `ACTION_REQUIRED`, the stub decision adapter also accepts `requested_operation.evidence_requirement_spec.categories`.
+1. When `force_decision` is `ACTION_REQUIRED`, the temporary Decision Maker stub also accepts `test_overrides.decision_maker.evidence_requirement_spec.categories`.
 2. If provided, those categories replace the stub's default evidence categories for that forced action-required response.
 3. This is useful for the SafeCert team to test different requirement sets without changing SADE code.
 4. Only the requirement categories are overridden by this hook today; SADE still controls correlation and workflow identifiers.
+
+Environmental testing hook:
+
+1. `test_overrides.weather_service.forecast` may be provided on the entry request.
+2. In local/dev flows, the no-op environmental service will use that supplied forecast instead of its default hardcoded values.
+3. This is useful for end-to-end testing that wants deterministic environmental context without changing SADE code.
 
 ## 4) Action-required continuation is SafeCert-owned (manual for now)
 
@@ -95,47 +117,32 @@ Operational reason:
 
 1. This continuation is intentionally detached from the original entry HTTP request.
 2. Once human review or document collection is involved, the elapsed time is no longer predictable.
-3. The operator should therefore treat the status URL as the source of truth for ongoing progress, not the original `POST /entry-request` response.
+3. The operator should therefore treat the status URL as the source of truth for ongoing progress, not the original `POST /entry-request` response or MQTT summary.
+4. SADE also rejects overlapping windows for the same drone or same pilot, even before decisioning finishes.
 
-## 5) Exit request does not finalize the session
-
-Call:
-
-- `POST /exit-request`
-
-Expected result when accepted:
-
-- `status: "REQUESTED"`
-- reason indicates it is awaiting tracker finalization
-
-What this means:
-
-1. Exit request is an operator intent signal.
-2. It does not close the flight session by itself.
-
-## 6) Session finalization is telemetry-owned (manual for now)
+## 5) Session finalization is telemetry-owned (manual for now)
 
 This stage is from the telemetry monitor/tracker perspective, not the pilot/operator UI perspective.
 
 Normal production intent:
 
-1. Operator sends `/exit-request` as intent (althought no necessary).
+1. SADE registers the approved session with the Flight Monitor.
 2. Telemetry monitor confirms actual flight completion.
 3. Telemetry monitor sends `POST /tracker-session-finalized` with observed timestamps and summary.
 
 Current environment status:
 
 1. Telemetry monitor integration is not wired yet.
-2. To complete a session in testing, call `/tracker-session-finalized` manually after `/exit-request`.
+2. To complete a session in testing, call `/tracker-session-finalized` manually.
 3. Use the same `flight_session_id` from the approved entry session.
 4. Expected success result is `status: "EXITED"`.
 
 Why this design exists:
 
-1. Operator intent and real flight completion are different events.
-2. Final closeout is based on telemetry-truth (actual observations), not only operator button press.
+1. Final closeout is based on telemetry-truth (actual observations), not only operator/operator-app intent.
+2. The authoritative closeout event is the tracker callback, not a separate stop request.
 
-## 7) Session discipline rule for operators
+## 6) Session discipline rule for operators
 
 Operator process should treat one drone as one active session at a time.
 
