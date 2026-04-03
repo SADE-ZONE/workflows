@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AWS IoT CSR Command Generator</title>
+
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; max-width: 900px; }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    label { display: block; font-size: 13px; margin-top: 12px; }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-top: 4px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      background: #f7f7f7;
+    }
+    button {
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #eee;
+      cursor: pointer;
+    }
+    button:hover { background: #e2e2e2; }
+  </style>
+</head>
+
+<body>
+  <div x-data="csrGen()" x-init="update()">
+    <h1>AWS IoT CSR Command Generator</h1>
+
+    <p>
+        This HTML page will generate bash commands that you can run to create a private key and a CSR.
+    </p>
+
+    <label>Name (Certificate CN)</label>
+    <input type="text" x-model="name" @input="update()" placeholder="Name" autocomplete="name">
+
+    <label>Email (SAN rfc822Name)</label>
+    <input type="email" x-model="email" @input="update()" placeholder="jdoe@example.edu" autocomplete="email">
+
+    <label>Organization</label>
+    <input type="text" x-model="org" @input="update()" placeholder="University Name or Abbreviation" autocomplete="organization">
+
+    <label>State (or its 2-letter Abbreviation)</label>
+    <input type="text" x-model="state" @input="update()" placeholder="STATE OR TERRITORY ABBREVIATIONS">
+
+    <button type="button" @click="copy()" x-text="buttonLabel"></button>
+
+    <textarea readonly x-text="script"></textarea>
+  </div>
+
+  <script>
+    function shellEscape(s) {
+      return String(s).replace(/'/g, `'\"'\"'`);
+    }
+
+    function csrGen() {
+      return {
+        copyMessage: "",
+        buttonLabel: "Copy to Clipboard",
+        name: "",
+        email: "",
+        org: "",
+        state: "",
+        script: "",
+
+        update() {
+          const name = this.name.trim() || "YOUR_NAME";
+          const email = this.email.trim() || "your.email@example.org";
+          const org = this.org.trim() || "YOUR_ORG";
+          const state = (this.state.trim() || "CA").toUpperCase();
+
+          const localPart = email.includes("@")
+            ? email.split("@")[0]
+            : "LOCAL_PART";
+
+          this.script = `openssl ecparam -name prime256v1 -genkey -noout -out ${localPart}.key
+
+openssl req -new \\
+  -key ${localPart}.key \\
+  -out ${localPart}.csr \\
+  -subj "/C=US/ST=${state}/O=${org}/CN=${name}" \\
+  -addext "subjectAltName = email:${email}"
+
+chmod 600 ${localPart}.key`;
+        },
+
+        async copy() {
+          try {
+            await navigator.clipboard.writeText(this.script);
+            this.copyMessage = "Copied!";
+            this.buttonLabel = "✓ Copied";
+            setTimeout(() => {
+                this.copyMessage = "";
+                this.buttonLabel = "Copy to Clipboard";
+            }, 2000);
+          } catch (err) {
+            console.log(err)
+            alert("Copy failed — please copy manually.");
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>

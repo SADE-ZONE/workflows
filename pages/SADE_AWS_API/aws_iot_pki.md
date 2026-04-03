@@ -1,7 +1,7 @@
 ## Overview
 
 To connect to the SADE AWS IoT Core Instance, you need three files:
-- the CA's certificate file ([here is the download link for `CAs.crt`](attachments/CAs.crt))
+- the CA's certificate file ([here is the download link for `CAs.crt`](./attachments/CAs.crt))
 - a private key
 - a certificate (with your public key)
 
@@ -59,7 +59,7 @@ chmod 600 me.key
 
 We created a bash script that prompts you for your details and generates the private key and CSR.
 
-[source code link](attachments/mk_aws_iot_pki.sh)
+[source code link](./attachments/mk_aws_iot_pki.sh)
 
 First, `cd` to the directory where you want to save your key and CSR files. Then download and run the script:
 
@@ -110,7 +110,7 @@ Replace the placeholders:
 
 Once you have your `.csr` file, please send it to us. We'll use it to generate your certificate and send it back to you.
 
-Also, if you haven't already, download the CA certificate file: [CAs.crt](attachments/CAs.crt). You'll need this file along with your private key and certificate to connect to the SADE AWS IoT Core endpoint.
+Also, if you haven't already, download the CA certificate file: [CAs.crt](./attachments/CAs.crt). You'll need this file along with your private key and certificate to connect to the SADE AWS IoT Core endpoint.
 
 ## How to connect with python and `paho-mqtt`
 
@@ -119,7 +119,7 @@ First make sure you have paho:
 pip install paho-mqtt
 ```
 
-Then take a look at the example: [attachments/mqtt_example.py](attachments/mqtt_example.py)
+Then take a look at the example: [attachments/mqtt_example.py](./attachments/mqtt_example.py)
 
 ## How to connect using mosquitto_sub and mosquitto_pub
 
