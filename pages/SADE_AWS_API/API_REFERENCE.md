@@ -1,6 +1,6 @@
 # SADE Client API Reference (AWS)
 
-Status date: 2026-03-12
+Status date: 2026-04-07
 
 This is the client-facing API contract for teams integrating with the deployed SADE AWS runtime.
 
@@ -54,8 +54,41 @@ Registry and status-query endpoints still use the standard HTTP error envelope:
 1. `UAV model`: the drone type/spec capabilities (for example wind tolerance and temperature limits).
 2. `UAV`: a specific drone unit that references one `uav-model`.
 3. `Pilot`: the operator identity and organization.
-4. `Zone`: the SADE-managed flight area (polygon + altitude ceiling).
-5. `Upsert`: create the record if it does not exist, or update it if it already exists.
+4. `UAV organization`: the organization that owns or controls a specific UAV record.
+5. `Zone`: the SADE-managed flight area (polygon + altitude ceiling).
+6. `Upsert`: create the record if it does not exist, or update it if it already exists.
+
+## Route list
+
+- `GET /health`: service liveness check.
+- `POST /entry-request`: submit an entry workflow for async processing.
+- `GET /entry-requests/{evaluation_series_id}`: fetch authoritative entry workflow status.
+- `POST /attestation-submission`: submit attestation evidence for an open action.
+- `GET /actions/{action_id}`: fetch authoritative action-required status.
+- `POST /tracker-session-finalized`: finalize a flight session from tracker telemetry.
+- `POST /registry/uav-model`: create or update one UAV model.
+- `POST /registry/uav`: create or update one UAV.
+- `POST /registry/pilot`: create or update one pilot.
+- `POST /registry/zone`: create or update one zone.
+- `GET /registry/uav-models`: list all UAV models.
+- `GET /registry/uavs`: list UAVs, optionally filtered by organization.
+- `GET /registry/pilots`: list pilots, optionally filtered by organization.
+- `GET /registry/zones`: list all zones.
+- `GET /registry/uav-model/{model_id}`: fetch one UAV model by id.
+- `GET /registry/uav/{drone_id}`: fetch one UAV by id.
+- `GET /registry/pilot/{pilot_id}`: fetch one pilot by id.
+- `GET /registry/zone/{sade_zone_id}`: fetch one zone by id.
+- `DELETE /registry/uav-model/{model_id}`: delete one UAV model if unused.
+- `DELETE /registry/uav/{drone_id}`: delete one UAV if no active workflow depends on it.
+- `DELETE /registry/pilot/{pilot_id}`: delete one pilot if no active workflow depends on it.
+- `DELETE /registry/zone/{sade_zone_id}`: delete one zone if no active workflow depends on it.
+
+## Supported filters
+
+- `GET /registry/pilots?organization_id=org-001`: limit pilots to one organization.
+- `GET /registry/uavs?organization_id=org-001`: limit UAVs to one organization.
+- `GET /registry/uavs?include_model=true`: embed each UAV's resolved model payload.
+- `GET /registry/uavs?organization_id=org-001&include_model=true`: combine both UAV filters in one request.
 
 ## Registry API
 
@@ -77,6 +110,7 @@ Request:
   "model_id": "model-001",
   "name": "DJI Mavic 3",
   "max_wind_tolerance": 22.5,
+  "max_payload_cap_lbs": 5,
   "max_temp_f": 110.0,
   "min_temp_f": -10.0
 }
@@ -91,6 +125,7 @@ Response:
     "model_id": "model-001",
     "name": "DJI Mavic 3",
     "max_wind_tolerance": 22.5,
+    "max_payload_cap_lbs": 5,
     "max_temp_f": 110.0,
     "min_temp_f": -10.0
   }
@@ -104,6 +139,8 @@ Response:
 Registers a specific UAV (drone) and links it to its `model_id`.  
 Uses upsert behavior by `drone_id`.
 
+Entry workflows require the UAV's `organization_id` to match the pilot's `organization_id`.
+
 <details>
 <summary>Request and response example</summary>
 
@@ -113,7 +150,7 @@ Request:
 {
   "drone_id": "drone-001",
   "model_id": "model-001",
-  "owner_id": "owner-001"
+  "organization_id": "org-001"
 }
 ```
 
@@ -125,7 +162,7 @@ Response:
   "uav": {
     "drone_id": "drone-001",
     "model_id": "model-001",
-    "owner_id": "owner-001"
+    "organization_id": "org-001"
   }
 }
 ```
@@ -240,7 +277,7 @@ Example `GET /registry/uav/drone-001`:
   "uav": {
     "drone_id": "drone-001",
     "model_id": "model-001",
-    "owner_id": "owner-001"
+    "organization_id": "org-001"
   }
 }
 ```
@@ -251,6 +288,110 @@ Not found example (HTTP 404):
 {
   "error": {
     "reason": "UAV not found: drone-999"
+  }
+}
+```
+
+</details>
+
+### Registry collection endpoints
+
+- `GET /registry/uav-models`
+- `GET /registry/uavs`
+- `GET /registry/pilots`
+- `GET /registry/zones`
+
+Fetches full registry collections.
+
+Supported filters:
+
+- `GET /registry/uavs?organization_id=org-001`
+- `GET /registry/uavs?organization_id=org-001&include_model=true`
+- `GET /registry/pilots?organization_id=org-001`
+
+Zones and UAV models are currently global and do not support organization filtering.
+
+<details>
+<summary>Collection response examples</summary>
+
+Example `GET /registry/uavs?organization_id=org-001&include_model=true`:
+
+```json
+{
+  "uavs": [
+    {
+      "drone_id": "drone-001",
+      "model_id": "model-001",
+      "organization_id": "org-001",
+      "uav_model": {
+        "model_id": "model-001",
+        "name": "DJI Mavic 3",
+        "max_wind_tolerance": 22.5,
+        "max_payload_cap_lbs": 5,
+        "max_temp_f": 110.0,
+        "min_temp_f": -10.0
+      }
+    }
+  ]
+}
+```
+
+Example `GET /registry/pilots?organization_id=org-001`:
+
+```json
+{
+  "pilots": [
+    {
+      "pilot_id": "pilot-001",
+      "organization_id": "org-001"
+    }
+  ]
+}
+```
+
+</details>
+
+### Registry delete endpoints
+
+- `DELETE /registry/uav-model/{model_id}`
+- `DELETE /registry/uav/{drone_id}`
+- `DELETE /registry/pilot/{pilot_id}`
+- `DELETE /registry/zone/{sade_zone_id}`
+
+Deletes one registry record by id.
+
+Delete guard behavior:
+
+- returns HTTP `404` if the record does not exist
+- returns HTTP `409` if deleting the record would break active workflow state
+- `DELETE /registry/uav-model/{model_id}` also returns HTTP `409` if any UAV still references that model
+
+<details>
+<summary>Delete response examples</summary>
+
+Successful delete:
+
+```json
+{
+  "status": "DELETED",
+  "zone": {
+    "sade_zone_id": "zone-002",
+    "name": "Unused Zone",
+    "polygon": {
+      "type": "Polygon",
+      "coordinates": []
+    },
+    "altitude_ceiling_m": 50.0
+  }
+}
+```
+
+Blocked delete (HTTP 409):
+
+```json
+{
+  "error": {
+    "reason": "Cannot delete UAV referenced by active workflows or planned sessions: drone-001"
   }
 }
 ```
@@ -282,6 +423,10 @@ This is now an asynchronous command endpoint.
 It returns a receipt, not the final decision body.
 
 This is intentional, not temporary. The endpoint acknowledges durable workflow acceptance first, then the caller follows the returned `status_url` for progress and outcome.
+
+Business validation note:
+
+- SADE rejects the request if `pilot.organization_id` and `uav.organization_id` do not match.
 
 <details>
 <summary>Request example</summary>
@@ -808,20 +953,3 @@ Business failed:
 </details>
 
 
-
-## Route list
-
-- `GET /health`
-- `POST /entry-request`
-- `GET /entry-requests/{evaluation_series_id}`
-- `POST /attestation-submission`
-- `GET /actions/{action_id}`
-- `POST /tracker-session-finalized`
-- `POST /registry/uav-model`
-- `POST /registry/uav`
-- `POST /registry/pilot`
-- `POST /registry/zone`
-- `GET /registry/uav-model/{model_id}`
-- `GET /registry/uav/{drone_id}`
-- `GET /registry/pilot/{pilot_id}`
-- `GET /registry/zone/{sade_zone_id}`
