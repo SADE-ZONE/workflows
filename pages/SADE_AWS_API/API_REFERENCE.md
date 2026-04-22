@@ -13,11 +13,12 @@ Quantities, units, timestamp format, and coordinate conventions follow [./QUANTI
 ## Common rules
 
 1. `POST` endpoints require `Content-Type: application/json`.
-2. Workflow `POST` endpoints require `idempotency_key`, except `POST /tracker-session-finalized`, which deduplicates by `flight_session_id`.
-3. Async workflow `POST` endpoints return a receipt first, not the final business outcome.
+2. Workflow `POST` endpoints require `idempotency_key`, except `POST /exit-request` and `POST /tracker-session-finalized`, which deduplicate by `flight_session_id`.
+3. Async workflow `POST` endpoints return an acknowledgment first, not the final business outcome.
 4. `POST /entry-request` and `POST /attestation-submission` return `RequestReceipt` with HTTP `202` on acceptance.
-5. `POST /tracker-session-finalized` remains synchronous and returns its final result contract.
-6. Validation/transport errors use HTTP `400` or `500`.
+5. `POST /exit-request` returns an async acknowledgment with HTTP `202` on acceptance.
+6. `POST /tracker-session-finalized` remains synchronous and returns its final result contract.
+7. Validation/transport errors use HTTP `400` or `500`.
 
 This async design is deliberate.
 
@@ -65,6 +66,7 @@ Registry and status-query endpoints still use the standard HTTP error envelope:
 - `GET /health`: service liveness check.
 - `POST /entry-request`: submit an entry workflow for async processing.
 - `GET /entry-requests/{evaluation_series_id}`: fetch authoritative entry workflow status.
+- `POST /exit-request`: record operator intent to leave early and queue Flight Monitor delivery.
 - `POST /attestation-submission`: submit attestation evidence for an open action.
 - `GET /actions/{action_id}`: fetch authoritative action-required status.
 - `POST /tracker-session-finalized`: finalize a flight session from tracker telemetry.
@@ -586,7 +588,7 @@ Optional notifications:
 
 
 
-Request receipt examples
+Response examples
 
 Accepted (HTTP 202):
 
@@ -864,7 +866,7 @@ Required fields: `idempotency_key`, `submission_time_utc`, `type`, `spec_version
 
 
 
-Request receipt examples
+Response examples
 
 Accepted (HTTP 202):
 
@@ -929,6 +931,48 @@ Status response example (HTTP 200)
 }
 ```
 
+
+
+### `POST /exit-request`
+
+Operator exit-intent endpoint.  
+Use this when the drone plans to leave early. This does not finalize the session. SADE queues the intent for Flight Monitor, and Flight Monitor decides the real end once the drone is offline.
+Idempotency is keyed by `flight_session_id`.
+
+Request example
+
+```json
+{
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+  "request_time_utc": "2026-03-09T18:41:00Z",
+  "reason": "Returning home early"
+}
+```
+
+Request receipt examples
+
+Accepted (HTTP 202):
+
+```json
+{
+  "status": "ACCEPTED",
+  "request_kind": "EXIT_REQUEST",
+  "message": "Exit request accepted and queued for Flight Monitor.",
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834"
+}
+```
+
+Rejected (HTTP 409):
+
+```json
+{
+  "status": "REJECTED",
+  "request_kind": "EXIT_REQUEST",
+  "message": "Flight session not found: 8c189f91-0348-4a15-a6f0-23377dca7834",
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+  "failure_code": "FLIGHT_SESSION_NOT_FOUND"
+}
+```
 
 
 ## Telemetry Monitor API

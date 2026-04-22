@@ -26,4 +26,4 @@ This environment is usable for integration testing, but these components are sti
 
 1. Environmental conditions service: currently returns hardcoded/synthetic data.
 2. Flight tracker integration: stop/finalization behavior is simulated (no external telemetry provider wired yet).
-3. Decision agent: currently uses a stub decision adapter (including test forcing hooks like `force_decision`).
+3. Decision Maker: currently uses a temporary stub service (including `test_overrides` hooks such as `force_decision`).

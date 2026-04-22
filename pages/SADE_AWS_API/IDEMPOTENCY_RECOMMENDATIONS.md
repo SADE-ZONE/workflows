@@ -1,6 +1,6 @@
 # Idempotency Recommendations (Client Integrations)
 
-Status date: 2026-03-09
+**Last Updated On:** 2026-04-22
 
 These are integration recommendations for Operator, SafeCert, and tracker/telemetry clients calling SADE APIs.
 
@@ -10,8 +10,8 @@ Provide `idempotency_key` on these routes:
 
 1. `POST /entry-request`
 2. `POST /attestation-submission`
-3. `POST /exit-request`
-4. `POST /tracker-session-finalized`
+
+For `POST /exit-request` and `POST /tracker-session-finalized`, SADE deduplicates by `flight_session_id` instead of requiring a separate `idempotency_key` field.
 
 ## How SADE deduplicates
 
@@ -38,8 +38,10 @@ Example key:
 ## Retry rules for clients
 
 1. If network/timeout happens and you are retrying the same logical message, retry with the exact same payload and exact same `idempotency_key`.
-2. If any payload field changes, generate a new key.
-3. Do not recycle old keys for unrelated requests.
+2. For `POST /exit-request`, retry with the exact same payload and same `flight_session_id`.
+3. For `POST /tracker-session-finalized`, retry with the exact same payload and same `flight_session_id`.
+4. If any payload field changes, generate a new key for the endpoints that use explicit `idempotency_key`.
+5. Do not recycle old keys for unrelated requests.
 
 ## TTL behavior
 
@@ -57,5 +59,6 @@ Include these in caller logs for incident debugging:
 2. HTTP method + path
 3. request hash or payload fingerprint
 4. response status and response body
+5. `flight_session_id` for exit-request and tracker finalization calls
 
 This makes duplicate/retry analysis fast when integrating across teams.

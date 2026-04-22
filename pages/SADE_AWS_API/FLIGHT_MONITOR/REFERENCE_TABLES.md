@@ -8,13 +8,90 @@ Unless noted otherwise, quantities, timestamps, and coordinate conventions follo
 ## Event Types
 
 An event is something that occurred during the flight within the approved allocated time.  
-For example, a `FLIGHT_SEGMENT` or an `INCIDENT`.
+For example, a `FLIGHT_SEGMENT`, `EXIT_REQUEST`, or an `INCIDENT`.
 
 
-| **Event Type**   | **Meaning**                    | **Expected Fields**                                                                                |
-| ---------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `FLIGHT_SEGMENT` | One contiguous flown interval. | `time_in_utc`, `time_out_utc`, required `battery_state_in`, optional `battery_state_out`, optional |
-| `INCIDENT`       | One coded incident.            | `time_utc`, `incident_code`                                                                        |
+| **Event Type**   | **Meaning**                     | **Current Required Fields**                                                    |
+| ---------------- | ------------------------------- | ------------------------------------------------------------------------------ |
+| `FLIGHT_SEGMENT` | One contiguous flown interval.  | `type`, `time_in_utc`, `time_out_utc`, `battery_state_in`, `battery_state_out` |
+| `EXIT_REQUEST`   | Operator intent to leave early. | `type`, `time_utc`, `reason`                                                   |
+| `INCIDENT`       | One coded incident.             | `type`, `time_utc`, `incident_code`                                            |
+
+
+### `FLIGHT_SEGMENT`
+
+Meaning: one contiguous flown interval.
+
+At least one `FLIGHT_SEGMENT` event must be present for tracker finalization.
+
+Expected JSON
+
+```json
+{
+  "type": "FLIGHT_SEGMENT",
+  "time_in_utc": "2026-03-09T18:05:00Z",
+  "time_out_utc": "2026-03-09T18:41:00Z",
+  "battery_state_in": {
+    "system_charge_pct": 98.0,
+    "slots": [
+      {
+        "slot_id": "A",
+        "voltage_v": 24.8
+      },
+      {
+        "slot_id": "B",
+        "voltage_v": 24.6
+      }
+    ]
+  },
+  "battery_state_out": {
+    "system_charge_pct": 61.0,
+    "slots": [
+      {
+        "slot_id": "A",
+        "voltage_v": 23.9
+      },
+      {
+        "slot_id": "B",
+        "voltage_v": 24.0
+      }
+    ]
+  }
+}
+```
+
+
+
+### `EXIT_REQUEST`
+
+Meaning: operator intent to leave early.
+
+Expected JSON
+
+```json
+{
+  "type": "EXIT_REQUEST",
+  "time_utc": "2026-03-09T18:35:00Z",
+  "reason": "Returning home early"
+}
+```
+
+
+
+### `INCIDENT`
+
+Meaning: one coded incident.
+
+Expected JSON
+
+```json
+{
+  "type": "INCIDENT",
+  "time_utc": "2026-03-09T18:41:00Z",
+  "incident_code": "0101-100"
+}
+```
+
 
 
 ## Incident Codes
@@ -24,16 +101,6 @@ So:
 
 - `type = INCIDENT` tells you this event is an incident
 - `incident_code` tells you which incident it was
-
-Example:
-
-```json
-{
-  "type": "INCIDENT",
-  "time_utc": "2026-03-09T18:41:00Z",
-  "incident_code": "0101-100"
-}
-```
 
 Incidents are a list of strings in format `hhhh-sss`, where:
 

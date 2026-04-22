@@ -142,20 +142,24 @@ This stage is from the telemetry monitor/tracker perspective, not the pilot/oper
 Normal production intent:
 
 1. SADE registers the approved session with the Flight Monitor.
-2. Telemetry monitor confirms actual flight completion.
-3. Telemetry monitor sends `POST /tracker-session-finalized` with observed timestamps and summary.
+2. If the operator wants to leave early, they may send `POST /exit-request`.
+3. Flight Monitor treats that as exit intent only, not immediate finalization.
+4. Telemetry monitor confirms actual flight completion.
+5. Telemetry monitor sends `POST /tracker-session-finalized` with observed timestamps, summary, and events.
 
 Current environment status:
 
 1. Telemetry monitor integration is not wired yet.
-2. To complete a session in testing, call `/tracker-session-finalized` manually.
-3. Use the same `flight_session_id` from the approved entry session.
-4. Expected success result is `status: "EXITED"`.
+2. `POST /exit-request` is available and queues the outbound Flight Monitor message asynchronously.
+3. To complete a session in testing, call `/tracker-session-finalized` manually.
+4. Use the same `flight_session_id` from the approved entry session.
+5. Expected success result is `status: "EXITED"`.
 
 Why this design exists:
 
 1. Final closeout is based on telemetry-truth (actual observations), not only operator/operator-app intent.
-2. The authoritative closeout event is the tracker callback, not a separate stop request.
+2. `POST /exit-request` only communicates intent to leave early.
+3. The authoritative closeout event is the tracker callback, not the exit-intent request.
 
 ## 6) Session discipline rule for operators
 

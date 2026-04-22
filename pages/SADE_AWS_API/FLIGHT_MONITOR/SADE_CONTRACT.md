@@ -8,6 +8,7 @@ Event, incident-code, and payload-type conventions live in [REFERENCE_TABLES.md]
 ### Integration summary
 
 - SADE sends one registration command at a time to `POST /flight-monitor/register-session`.
+- SADE may also send an exit-intent command to `POST /flight-monitor/exit-request`.
 - The Flight Monitor should immediately acknowledge acceptance with `202 Accepted`.
 - The Flight Monitor later returns one finalization report to SADE by calling `POST /tracker-session-finalized`.
 - `flight_session_id` is the primary correlation and idempotency key for both sides of this integration.
@@ -15,15 +16,16 @@ Event, incident-code, and payload-type conventions live in [REFERENCE_TABLES.md]
 ### Endpoint shape
 
 - SADE -> Flight Monitor: `POST /flight-monitor/register-session`
+- SADE -> Flight Monitor: `POST /flight-monitor/exit-request`
 - Flight Monitor -> SADE: `POST /tracker-session-finalized`
 
 ### Current v1 rules
 
-- outbound registration is asynchronous from SADE through the outbox
+- outbound registration and exit-intent delivery are asynchronous from SADE through the outbox
 - finalization callback into SADE is synchronous HTTP
 - `flight_session_id` is the only required cross-system correlation key
 
-## Telemetry Monitor Request
+## Register Session
 
 When an entry request is approved and SADE creates a planned flight session, SADE sends a registration message to the Flight Monitor at `POST /flight-monitor/register-session`.
 
@@ -96,6 +98,27 @@ This keeps the Flight Monitor rule simple:
 - `test_overrides == null` means use the normal monitor path
 - `test_overrides` object means use the stub or simulated path described by that object
 
+## Exit Request
+
+When an operator wants to leave early, SADE sends an exit-intent message to the Flight Monitor at `POST /flight-monitor/exit-request`.
+
+This does not finalize the session. It only records intent to leave early. The Flight Monitor remains authoritative for the real end of flight and should finalize later, once the drone is judged offline.
+
+```json
+{
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+  "request_time_utc": "2026-03-09T18:41:00Z",
+  "reason": "Returning home early"
+}
+```
+
+Important notes:
+
+- this is an intent message, not a closeout message
+- it does not reduce or rewrite the original approved window inside SADE
+- once the Flight Monitor later finalizes the session, the drone can no longer operate under that session even if approved time remained
+- the finalized reputation history should include an `EXIT_REQUEST` event in `events`
+
 ### Finalization callback response examples
 
 These responses are returned by SADE when the Flight Monitor calls `POST /tracker-session-finalized`.
@@ -128,7 +151,7 @@ Failure means SADE rejected the finalization callback for a business reason, suc
 }
 ```
 
-## Reputation Record Submission
+## Tracker Session Finalized
 
 ### What the telemetry monitor should send to SADE
 
