@@ -1,0 +1,1 @@
+#TODO: Tom to describe a secific message format that is required from operator's drone and to be consumed by telemetry monitor
