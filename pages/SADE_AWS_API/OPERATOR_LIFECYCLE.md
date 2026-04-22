@@ -1,6 +1,6 @@
 # Operator Lifecycle Guide (AWS Runtime)
 
-Status date: 2026-03-12
+**Last Updated On:** 2026-04-22
 
 This guide is the practical sequence for operator-facing testing and integration.
 
@@ -76,6 +76,14 @@ Example snippet:
       "force_decision": "ACTION_REQUIRED"
     }
   },
+  "declared_payload": {
+    "total_weight_kg": 2.5,
+    "components": [
+      {
+        "type": "CAMERA_01"
+      }
+    ]
+  },
   "requested_operation": {
     "operation_type": "INSPECTION",
     "priority": "NORMAL"
@@ -95,6 +103,13 @@ Environmental testing hook:
 1. `test_overrides.weather_service.forecast` may be provided on the entry request.
 2. In local/dev flows, the no-op environmental service will use that supplied forecast instead of its default hardcoded values.
 3. This is useful for end-to-end testing that wants deterministic environmental context without changing SADE code.
+
+Flight-monitor testing hook:
+
+1. `test_overrides.flight_monitor` may be provided on the entry request.
+2. On approval, SADE forwards that object as the outbound Flight Monitor `test_overrides` value.
+3. If `test_overrides.flight_monitor` is absent, SADE forwards outbound `test_overrides=null`.
+4. This is intentionally a pass-through hook for stub/dev integrations, so SADE does not interpret the object contents.
 
 ## 4) Action-required continuation is SafeCert-owned (manual for now)
 

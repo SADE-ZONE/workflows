@@ -1,6 +1,10 @@
-## 1. Decision Maker
+# Decision Maker Contract
 
-### Integration summary
+**Last Updated On:** 2026-04-22
+
+Unless noted otherwise, quantities, timestamps, and coordinate conventions follow [../QUANTITIES_AND_UNITS.md](../QUANTITIES_AND_UNITS.md).
+
+## Integration Summary
 
 - SADE sends one decision job at a time to `POST /decision-request`.
 - The Decision Maker should immediately acknowledge acceptance with `202 Accepted`.
@@ -16,12 +20,12 @@ For v1, the Decision Maker should produce exactly one final callback per `evalua
 - `DENIED`
 - or a catch-all processing failure
 
-### Endpoint shape
+## Endpoint Shape
 
 - SADE -> Decision Maker: `POST /decision-request`
 - Decision Maker -> SADE: `POST /decision-result`
 
-### Request contract
+## Request Contract
 
 Suggested request example:
 
@@ -29,23 +33,23 @@ Suggested request example:
 {
   "evaluation_id": "b80eac98-e26b-4988-9179-c4e84fc4530f",
   "evaluation_series_id": "f17f4eab-35e6-4d2a-a802-1e00e51ade3d",
-  "submitted_at": "2026-03-27T21:19:47Z",
+  "submitted_at_utc": "2026-03-27T21:19:47Z",
   "entry_request_kind": "ENTRY",
-  "request_time": "2026-03-09T17:55:00Z",
-  "requested_entry_time": "2026-03-09T18:00:00Z",
-  "requested_exit_time": "2026-03-09T19:00:00Z",
+  "request_time_utc": "2026-03-09T17:55:00Z",
+  "requested_entry_time_utc": "2026-03-09T18:00:00Z",
+  "requested_exit_time_utc": "2026-03-09T19:00:00Z",
   "uav": {
     "drone_id": "drone-001",
     "model_id": "model-001",
-    "owner_id": "owner-001"
+    "organization_id": "org-001"
   },
   "uav_model": {
     "model_id": "model-001",
     "name": "DJI Mavic 3",
-    "max_wind_tolerance": 22.5,
+    "max_wind_tolerance_knots": 22.5,
     "max_temp_f": 110.0,
     "min_temp_f": -10.0,
-    "max_payload_cap_lbs": 5
+    "max_payload_cap_kg": 5
   },
   "pilot": {
     "pilot_id": "pilot-001",
@@ -59,8 +63,8 @@ Suggested request example:
   "reputation_records": [],
   "weather_forecast": {
     "sade_zone_id": "zone-001",
-    "window_start": "2026-03-09T18:00:00Z",
-    "window_end": "2026-03-09T19:00:00Z",
+    "window_start_utc": "2026-03-09T18:00:00Z",
+    "window_end_utc": "2026-03-09T19:00:00Z",
     "max_wind_knots": 0.0,
     "max_gust_knots": 0.0,
     "min_temp_f": 0.0,
@@ -68,17 +72,19 @@ Suggested request example:
     "precipitation_summary": "none",
     "visibility_min_nm": 0.0,
     "source": "NOOP_HARDCODED",
-    "confidence": 0.0,
-    "generated_at": "2026-03-09T18:00:00Z"
+    "confidence_ratio": 0.0,
+    "generated_at_utc": "2026-03-09T18:00:00Z"
   },
-  "test_overrides": {},
+  "test_overrides": null,
   "entry_request_history": []
 }
 ```
 
-`test_overrides` is only for local/dev testing with stubbed services. It is not part of the long-term production contract.
+`test_overrides` is only for local/dev testing with the temporary Decision Maker stub. It is not part of the long-term production contract.
 
-### `applicable_scopes`
+For the outbound Decision Maker contract, `test_overrides` is nullable and only carries Decision Maker-specific stub instructions. Weather overrides are resolved inside SADE and reflected through `weather_forecast`, not forwarded here.
+
+## `applicable_scopes`
 
 `applicable_scopes` tells the Decision Maker why a claim or reputation row is relevant to the current evaluation:
 
@@ -90,7 +96,7 @@ This is meaningful decision context. A pilot-scoped record and a UAV-scoped reco
 
 `applicable_scopes` explains why a row is relevant. It does not mean other fields disappear from the row. For example, a record with `["PILOT"]` may still include `drone_id`, telemetry, and weather context because those are part of the observed flight.
 
-### Example `attestation_claims`
+## Example `attestation_claims`
 
 ```json
 "attestation_claims": [
@@ -105,8 +111,8 @@ This is meaningful decision context. A pilot-scoped record and a UAV-scoped reco
     "meta": {
       "status": "SATISFIED"
     },
-    "issued_at": "2026-03-01T10:00:00Z",
-    "expires_at": "2027-03-01T10:00:00Z",
+    "issued_at_utc": "2026-03-01T10:00:00Z",
+    "expires_at_utc": "2027-03-01T10:00:00Z",
     "evidence_ref": "attestation:ATT-2",
     "signature_ref": null
   },
@@ -124,8 +130,8 @@ This is meaningful decision context. A pilot-scoped record and a UAV-scoped reco
       "status": "SATISFIED",
       "observed_max_wind_gust": "24mph"
     },
-    "issued_at": "2026-03-01T10:00:00Z",
-    "expires_at": null,
+    "issued_at_utc": "2026-03-01T10:00:00Z",
+    "expires_at_utc": null,
     "evidence_ref": "attestation:ATT-3",
     "signature_ref": null
   }
@@ -138,69 +144,106 @@ For the current target shape:
 - each claim should include `applicable_scopes`
 - claims should use `["PILOT"]` or `["UAV"]` in v1
 
-### Example `reputation_records`
+## Example `reputation_records`
 
 ```json
 "reputation_records": [
   {
     "reputation_record_id": "rep-001",
     "applicable_scopes": ["PILOT", "UAV"],
+    "evaluation_series_id": "series-001",
     "pilot_id": "pilot-001",
     "drone_id": "drone-001",
-    "observed_at": "2026-03-02T18:32:00Z",
-    "telemetry": {
+    "flight_session_id": "flight-session-001",
+    "organization_id": "org-001",
+    "sade_zone_id": "zone-001",
+    "telemetry_summary": {
       "altitude_min_m": 12.0,
       "altitude_max_m": 94.5,
-      "battery_start_pct": 98.0,
-      "battery_end_pct": 61.0,
-      "battery_voltage_start_v": 16.2,
-      "battery_voltage_end_v": 14.9
+      "distance_flown_m": 2896.8
+    },
+    "declared_payload": {
+      "total_weight_kg": 2.5,
+      "components": [
+        {
+          "type": "CAMERA_01"
+        }
+      ]
     },
     "weather_observed": {
+      "window_start_utc": "2026-03-02T18:00:00Z",
+      "window_end_utc": "2026-03-02T18:32:00Z",
       "max_wind_knots": 24.0,
       "max_gust_knots": 31.0,
       "visibility_min_nm": 8.0
-    }
+    },
+    "events": [
+      {
+        "type": "FLIGHT_SEGMENT",
+        "time_in_utc": "2026-03-02T18:00:00Z",
+        "time_out_utc": "2026-03-02T18:32:00Z"
+      }
+    ]
   },
   {
     "reputation_record_id": "rep-002",
     "applicable_scopes": ["PILOT"],
+    "evaluation_series_id": "series-002",
     "pilot_id": "pilot-001",
     "drone_id": "drone-777",
-    "observed_at": "2026-02-01T14:12:00Z",
-    "telemetry": {
+    "flight_session_id": "flight-session-002",
+    "organization_id": "org-001",
+    "sade_zone_id": "zone-002",
+    "telemetry_summary": {
       "altitude_min_m": 10.0,
       "altitude_max_m": 70.0,
-      "battery_start_pct": 96.0,
-      "battery_end_pct": 68.0,
-      "battery_voltage_start_v": 16.1,
-      "battery_voltage_end_v": 15.0
+      "distance_flown_m": 1600.0
     },
+    "declared_payload": {},
     "weather_observed": {
+      "window_start_utc": "2026-02-01T13:45:00Z",
+      "window_end_utc": "2026-02-01T14:12:00Z",
       "max_wind_knots": 19.0,
       "max_gust_knots": 25.0,
       "visibility_min_nm": 9.0
-    }
+    },
+    "events": [
+      {
+        "type": "FLIGHT_SEGMENT",
+        "time_in_utc": "2026-02-01T13:45:00Z",
+        "time_out_utc": "2026-02-01T14:12:00Z"
+      }
+    ]
   },
   {
     "reputation_record_id": "rep-003",
     "applicable_scopes": ["UAV"],
+    "evaluation_series_id": "series-003",
     "pilot_id": "pilot-999",
     "drone_id": "drone-001",
-    "observed_at": "2026-01-12T09:40:00Z",
-    "telemetry": {
+    "flight_session_id": "flight-session-003",
+    "organization_id": "org-999",
+    "sade_zone_id": "zone-003",
+    "telemetry_summary": {
       "altitude_min_m": 8.0,
       "altitude_max_m": 82.0,
-      "battery_start_pct": 97.0,
-      "battery_end_pct": 66.0,
-      "battery_voltage_start_v": 16.0,
-      "battery_voltage_end_v": 14.8
+      "distance_flown_m": 1900.0
     },
+    "declared_payload": {},
     "weather_observed": {
+      "window_start_utc": "2026-01-12T09:05:00Z",
+      "window_end_utc": "2026-01-12T09:40:00Z",
       "max_wind_knots": 22.0,
       "max_gust_knots": 28.0,
       "visibility_min_nm": 7.0
-    }
+    },
+    "events": [
+      {
+        "type": "FLIGHT_SEGMENT",
+        "time_in_utc": "2026-01-12T09:05:00Z",
+        "time_out_utc": "2026-01-12T09:40:00Z"
+      }
+    ]
   }
 ]
 ```
@@ -210,9 +253,11 @@ For the current target shape:
 - reputation should be sent as one outward list
 - rows should be deduplicated by `reputation_record_id`
 - each row should include `applicable_scopes`
+- each row should carry the richer `telemetry_summary`, `declared_payload`, `weather_observed`, and `events` objects when available
 - zone should be treated as context, not as a reusable scope
+- event, incident-code, and payload-type conventions follow [../FLIGHT_MONITOR/REFERENCE_TABLES.md](../FLIGHT_MONITOR/REFERENCE_TABLES.md)
 
-### Example `entry_request_history`
+## Example `entry_request_history`
 
 `entry_request_history` summarizes prior decisions that are relevant to the current evaluation.
 
@@ -250,51 +295,33 @@ For the current target shape:
 ]
 ```
 
-### Example `test_overrides` for dev testing only
+## Example `test_overrides` for dev testing only
 
 This is not part of the long-term production contract.
 
 ```json
 "test_overrides": {
-  "decision_maker": {
-    "force_decision": "ACTION_REQUIRED",
-    "evidence_requirement_spec": {
-      "categories": [
-        {
-          "category": "CUSTOM_CATEGORY",
-          "requirements": [
-            {
-              "requirement_id": "req-special-review",
-              "expr": "SPECIAL_REVIEW",
-              "keyword": "SPECIAL_REVIEW",
-              "params": [],
-              "applicable_scopes": ["PILOT"]
-            }
-          ]
-        }
-      ]
-    }
-  },
-  "weather_service": {
-    "forecast": {
-      "sade_zone_id": "zone-001",
-      "window_start": "2026-03-09T18:00:00Z",
-      "window_end": "2026-03-09T19:00:00Z",
-      "max_wind_knots": 18.0,
-      "max_gust_knots": 24.0,
-      "min_temp_f": 42.0,
-      "max_temp_f": 47.0,
-      "precipitation_summary": "none",
-      "visibility_min_nm": 8.0,
-      "source": "TEST_OVERRIDE",
-      "confidence": 1.0,
-      "generated_at": "2026-03-09T17:55:00Z"
-    }
+  "force_decision": "ACTION_REQUIRED",
+  "evidence_requirement_spec": {
+    "categories": [
+      {
+        "category": "CUSTOM_CATEGORY",
+        "requirements": [
+          {
+            "requirement_id": "req-special-review",
+            "expr": "SPECIAL_REVIEW",
+            "keyword": "SPECIAL_REVIEW",
+            "params": [],
+            "applicable_scopes": ["PILOT"]
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-### Immediate response
+## Immediate Response
 
 The immediate response should only indicate whether the Decision Maker accepted the work item for asynchronous processing.
 
@@ -318,7 +345,7 @@ Recommended HTTP behavior:
 
 SADE retries transport failures, `429`, and `5xx` responses.
 
-### Result callback contract
+## Result Callback Contract
 
 SADE returns `200 OK` once the callback has been durably accepted.
 
@@ -328,7 +355,7 @@ SADE returns `200 OK` once the callback has been durably accepted.
 {
   "evaluation_id": "b80eac98-e26b-4988-9179-c4e84fc4530f",
   "evaluation_series_id": "f17f4eab-35e6-4d2a-a802-1e00e51ade3d",
-  "completed_at": "2026-03-27T21:19:48Z",
+  "completed_at_utc": "2026-03-27T21:19:48Z",
   "result": {
     "decision": "APPROVED",
     "reason": "Mission is approved under current conditions.",
@@ -344,7 +371,7 @@ SADE returns `200 OK` once the callback has been durably accepted.
 {
   "evaluation_id": "b80eac98-e26b-4988-9179-c4e84fc4530f",
   "evaluation_series_id": "f17f4eab-35e6-4d2a-a802-1e00e51ade3d",
-  "completed_at": "2026-03-27T21:19:48Z",
+  "completed_at_utc": "2026-03-27T21:19:48Z",
   "result": {
     "decision": "APPROVED_CONSTRAINTS",
     "reason": "Mission is approved with additional operating constraints.",
@@ -369,7 +396,7 @@ SADE returns `200 OK` once the callback has been durably accepted.
 {
   "evaluation_id": "b80eac98-e26b-4988-9179-c4e84fc4530f",
   "evaluation_series_id": "f17f4eab-35e6-4d2a-a802-1e00e51ade3d",
-  "completed_at": "2026-03-27T21:19:48Z",
+  "completed_at_utc": "2026-03-27T21:19:48Z",
   "result": {
     "decision": "ACTION_REQUIRED",
     "reason": "Additional evidence is required before approval.",
@@ -409,7 +436,7 @@ SADE returns `200 OK` once the callback has been durably accepted.
 {
   "evaluation_id": "b80eac98-e26b-4988-9179-c4e84fc4530f",
   "evaluation_series_id": "f17f4eab-35e6-4d2a-a802-1e00e51ade3d",
-  "completed_at": "2026-03-27T21:19:48Z",
+  "completed_at_utc": "2026-03-27T21:19:48Z",
   "result": {
     "decision": "DENIED",
     "reason": "Mission is not permitted under current policy and conditions.",
@@ -425,7 +452,7 @@ SADE returns `200 OK` once the callback has been durably accepted.
 {
   "evaluation_id": "b80eac98-e26b-4988-9179-c4e84fc4530f",
   "evaluation_series_id": "f17f4eab-35e6-4d2a-a802-1e00e51ade3d",
-  "completed_at": "2026-03-27T21:19:48Z",
+  "completed_at_utc": "2026-03-27T21:19:48Z",
   "processing_failed": true,
   "reason": "Decision Maker could not process this evaluation."
 }
@@ -433,7 +460,7 @@ SADE returns `200 OK` once the callback has been durably accepted.
 
 For v1, SADE does not expect intermediate progress callbacks.
 
-### Standardized `evidence_requirement_spec` for `ACTION_REQUIRED`
+## Standardized `evidence_requirement_spec` for `ACTION_REQUIRED`
 
 When the Decision Maker returns `ACTION_REQUIRED`, it should produce a standardized `evidence_requirement_spec`.
 

@@ -1,8 +1,10 @@
 # SADE Client API Reference (AWS)
 
-Status date: 2026-04-07
+**Last Updated On:** 2026-04-22
 
 This is the client-facing API contract for teams integrating with the deployed SADE AWS runtime.
+
+Quantities, units, timestamp format, and coordinate conventions follow [./QUANTITIES_AND_UNITS.md](./QUANTITIES_AND_UNITS.md).
 
 ## Base URL
 
@@ -55,7 +57,7 @@ Registry and status-query endpoints still use the standard HTTP error envelope:
 2. `UAV`: a specific drone unit that references one `uav-model`.
 3. `Pilot`: the operator identity and organization.
 4. `UAV organization`: the organization that owns or controls a specific UAV record.
-5. `Zone`: the SADE-managed flight area (polygon + altitude ceiling).
+5. `Zone`: the SADE-managed flight area (polygon_geojson + altitude ceiling).
 6. `Upsert`: create the record if it does not exist, or update it if it already exists.
 
 ## Route list
@@ -66,6 +68,10 @@ Registry and status-query endpoints still use the standard HTTP error envelope:
 - `POST /attestation-submission`: submit attestation evidence for an open action.
 - `GET /actions/{action_id}`: fetch authoritative action-required status.
 - `POST /tracker-session-finalized`: finalize a flight session from tracker telemetry.
+- `GET /reputation-records`: list stored reputation records filtered by organization, pilot, and/or UAV.
+- `GET /attestation-claims`: list stored attestation claims filtered by organization, pilot, and/or UAV.
+- `POST /testing/reputation-records`: create a synthetic reputation record for testing/scenario seeding.
+- `POST /testing/attestation-claims`: create synthetic attestation claims for testing/scenario seeding.
 - `POST /registry/uav-model`: create or update one UAV model.
 - `POST /registry/uav`: create or update one UAV.
 - `POST /registry/pilot`: create or update one pilot.
@@ -89,6 +95,10 @@ Registry and status-query endpoints still use the standard HTTP error envelope:
 - `GET /registry/uavs?organization_id=org-001`: limit UAVs to one organization.
 - `GET /registry/uavs?include_model=true`: embed each UAV's resolved model payload.
 - `GET /registry/uavs?organization_id=org-001&include_model=true`: combine both UAV filters in one request.
+- `GET /reputation-records?organization_id=org-001`: limit reputation records to one organization.
+- `GET /reputation-records?pilot_id=pilot-001&drone_id=drone-001`: combine reputation filters with AND semantics.
+- `GET /attestation-claims?organization_id=org-001`: limit claims to one organization.
+- `GET /attestation-claims?pilot_id=pilot-001`: limit claims to one pilot-bound subject.
 
 ## Registry API
 
@@ -100,8 +110,7 @@ Create these records first, then use workflow routes like `/entry-request`.
 Registers a UAV model in SADE.  
 Uses upsert behavior by `model_id`.
 
-<details>
-<summary>Request and response example</summary>
+Request and response example
 
 Request:
 
@@ -109,8 +118,8 @@ Request:
 {
   "model_id": "model-001",
   "name": "DJI Mavic 3",
-  "max_wind_tolerance": 22.5,
-  "max_payload_cap_lbs": 5,
+  "max_wind_tolerance_knots": 22.5,
+  "max_payload_cap_kg": 5,
   "max_temp_f": 110.0,
   "min_temp_f": -10.0
 }
@@ -124,15 +133,15 @@ Response:
   "uav_model": {
     "model_id": "model-001",
     "name": "DJI Mavic 3",
-    "max_wind_tolerance": 22.5,
-    "max_payload_cap_lbs": 5,
+    "max_wind_tolerance_knots": 22.5,
+    "max_payload_cap_kg": 5,
     "max_temp_f": 110.0,
     "min_temp_f": -10.0
   }
 }
 ```
 
-</details>
+
 
 ### `POST /registry/uav`
 
@@ -141,8 +150,7 @@ Uses upsert behavior by `drone_id`.
 
 Entry workflows require the UAV's `organization_id` to match the pilot's `organization_id`.
 
-<details>
-<summary>Request and response example</summary>
+Request and response example
 
 Request:
 
@@ -167,15 +175,14 @@ Response:
 }
 ```
 
-</details>
+
 
 ### `POST /registry/pilot`
 
 Registers a pilot identity used in entry and attestation workflows.  
 Uses upsert behavior by `pilot_id`.
 
-<details>
-<summary>Request and response example</summary>
+Request and response example
 
 Request:
 
@@ -198,15 +205,14 @@ Response:
 }
 ```
 
-</details>
+
 
 ### `POST /registry/zone`
 
 Registers a SADE zone boundary and altitude policy.  
 Uses upsert behavior by `sade_zone_id`.
 
-<details>
-<summary>Request and response example</summary>
+Request and response example
 
 Request:
 
@@ -214,7 +220,7 @@ Request:
 {
   "sade_zone_id": "zone-001",
   "name": "Zone 001",
-  "polygon": {
+  "polygon_geojson": {
     "type": "Polygon",
     "coordinates": [
       [
@@ -238,7 +244,7 @@ Response:
   "zone": {
     "sade_zone_id": "zone-001",
     "name": "Zone 001",
-    "polygon": {
+    "polygon_geojson": {
       "type": "Polygon",
       "coordinates": [
         [
@@ -255,7 +261,7 @@ Response:
 }
 ```
 
-</details>
+
 
 ### Registry GET endpoints
 
@@ -267,8 +273,7 @@ Response:
 Fetches one registry record by id.  
 Returns HTTP `404` if the record does not exist.
 
-<details>
-<summary>GET response examples</summary>
+GET response examples
 
 Example `GET /registry/uav/drone-001`:
 
@@ -292,7 +297,7 @@ Not found example (HTTP 404):
 }
 ```
 
-</details>
+
 
 ### Registry collection endpoints
 
@@ -311,8 +316,7 @@ Supported filters:
 
 Zones and UAV models are currently global and do not support organization filtering.
 
-<details>
-<summary>Collection response examples</summary>
+Collection response examples
 
 Example `GET /registry/uavs?organization_id=org-001&include_model=true`:
 
@@ -326,8 +330,8 @@ Example `GET /registry/uavs?organization_id=org-001&include_model=true`:
       "uav_model": {
         "model_id": "model-001",
         "name": "DJI Mavic 3",
-        "max_wind_tolerance": 22.5,
-        "max_payload_cap_lbs": 5,
+        "max_wind_tolerance_knots": 22.5,
+        "max_payload_cap_kg": 5,
         "max_temp_f": 110.0,
         "min_temp_f": -10.0
       }
@@ -349,7 +353,7 @@ Example `GET /registry/pilots?organization_id=org-001`:
 }
 ```
 
-</details>
+
 
 ### Registry delete endpoints
 
@@ -366,8 +370,7 @@ Delete guard behavior:
 - returns HTTP `409` if deleting the record would break active workflow state
 - `DELETE /registry/uav-model/{model_id}` also returns HTTP `409` if any UAV still references that model
 
-<details>
-<summary>Delete response examples</summary>
+Delete response examples
 
 Successful delete:
 
@@ -377,7 +380,7 @@ Successful delete:
   "zone": {
     "sade_zone_id": "zone-002",
     "name": "Unused Zone",
-    "polygon": {
+    "polygon_geojson": {
       "type": "Polygon",
       "coordinates": []
     },
@@ -396,7 +399,7 @@ Blocked delete (HTTP 409):
 }
 ```
 
-</details>
+
 
 ## Operator APIs
 
@@ -404,8 +407,7 @@ Blocked delete (HTTP 409):
 
 Light service liveness check used by humans, scripts, and load balancer health checks.
 
-<details>
-<summary>Response example</summary>
+Response example
 
 ```json
 {
@@ -414,7 +416,7 @@ Light service liveness check used by humans, scripts, and load balancer health c
 }
 ```
 
-</details>
+
 
 ### `POST /entry-request`
 
@@ -428,8 +430,7 @@ Business validation note:
 
 - SADE rejects the request if `pilot.organization_id` and `uav.organization_id` do not match.
 
-<details>
-<summary>Request example</summary>
+Request example
 
 ```json
 {
@@ -444,9 +445,17 @@ Business validation note:
       "transport": "MQTT"
     }
   },
-  "requested_entry_time": "2026-03-09T18:00:00Z",
-  "requested_exit_time": "2026-03-09T19:00:00Z",
-  "request_time": "2026-03-09T17:55:00Z",
+  "requested_entry_time_utc": "2026-03-09T18:00:00Z",
+  "requested_exit_time_utc": "2026-03-09T19:00:00Z",
+  "request_time_utc": "2026-03-09T17:55:00Z",
+  "declared_payload": {
+    "total_weight_kg": 2.5,
+    "components": [
+      {
+        "type": "CAMERA_01"
+      }
+    ]
+  },
   "requested_operation": {
     "operation_type": "INSPECTION",
     "priority": "NORMAL"
@@ -458,8 +467,8 @@ Business validation note:
     "weather_service": {
       "forecast": {
         "sade_zone_id": "zone-001",
-        "window_start": "2026-03-09T18:00:00Z",
-        "window_end": "2026-03-09T19:00:00Z",
+        "window_start_utc": "2026-03-09T18:00:00Z",
+        "window_end_utc": "2026-03-09T19:00:00Z",
         "max_wind_knots": 18.0,
         "max_gust_knots": 24.0,
         "min_temp_f": 42.0,
@@ -467,9 +476,23 @@ Business validation note:
         "precipitation_summary": "none",
         "visibility_min_nm": 8.0,
         "source": "TEST_OVERRIDE",
-        "confidence": 1.0,
-        "generated_at": "2026-03-09T17:55:00Z"
+        "confidence_ratio": 1.0,
+        "generated_at_utc": "2026-03-09T17:55:00Z"
       }
+    },
+    "flight_monitor": {
+      "mode": "SIMULATE_FINALIZATION",
+      "telemetry_summary": {
+        "altitude_max_m": 88.0,
+        "battery_end_pct": 61.0
+      },
+      "events": [
+        {
+          "type": "FLIGHT_SEGMENT",
+          "time_in_utc": "2026-03-09T18:05:00Z",
+          "time_out_utc": "2026-03-09T18:41:00Z"
+        }
+      ]
     }
   }
 }
@@ -480,6 +503,7 @@ Optional test-only override hook (inside top-level `test_overrides`):
 - `decision_maker.force_decision`: `APPROVED`, `APPROVED_CONSTRAINTS`, `DENIED`, `ACTION_REQUIRED`, `NONE`, `RAISE`
 - `decision_maker.evidence_requirement_spec`: optional requirement override for forced `ACTION_REQUIRED` stub responses
 - `weather_service.forecast`: temporary override payload consumed by the no-op environmental service in local/dev flows
+- `flight_monitor`: optional temporary pass-through object forwarded as the outbound Flight Monitor `test_overrides` value for stub/dev behavior
 
 Example override shape:
 
@@ -506,8 +530,8 @@ Example override shape:
     "weather_service": {
       "forecast": {
         "sade_zone_id": "zone-001",
-        "window_start": "2026-03-09T18:00:00Z",
-        "window_end": "2026-03-09T19:00:00Z",
+        "window_start_utc": "2026-03-09T18:00:00Z",
+        "window_end_utc": "2026-03-09T19:00:00Z",
         "max_wind_knots": 18.0,
         "max_gust_knots": 24.0,
         "min_temp_f": 42.0,
@@ -515,10 +539,32 @@ Example override shape:
         "precipitation_summary": "none",
         "visibility_min_nm": 8.0,
         "source": "TEST_OVERRIDE",
-        "confidence": 1.0,
-        "generated_at": "2026-03-09T17:55:00Z"
+        "confidence_ratio": 1.0,
+        "generated_at_utc": "2026-03-09T17:55:00Z"
       }
+    },
+    "flight_monitor": {
+      "mode": "SIMULATE_FINALIZATION",
+      "telemetry_summary": {
+        "altitude_max_m": 88.0,
+        "battery_end_pct": 61.0
+      },
+      "events": [
+        {
+          "type": "FLIGHT_SEGMENT",
+          "time_in_utc": "2026-03-09T18:05:00Z",
+          "time_out_utc": "2026-03-09T18:41:00Z"
+        }
+      ]
     }
+  },
+  "declared_payload": {
+    "total_weight_kg": 2.5,
+    "components": [
+      {
+        "type": "CAMERA_01"
+      }
+    ]
   },
   "requested_operation": {
     "operation_type": "INSPECTION",
@@ -538,10 +584,9 @@ Optional notifications:
 - the topic is derived by SADE; callers do not provide a topic string
 - `status_url` remains authoritative even when notifications are enabled
 
-</details>
 
-<details>
-<summary>Request receipt examples</summary>
+
+Request receipt examples
 
 Accepted (HTTP 202):
 
@@ -581,8 +626,6 @@ Rejected (HTTP 409):
 
 
 
-</details>
-
 ### `GET /entry-requests/{evaluation_series_id}`
 
 Reads the current workflow state for one logical entry request.  
@@ -600,8 +643,7 @@ If MQTT notifications were enabled on the request:
 2. expect retained summary notifications for `APPROVED`, `APPROVED_CONSTRAINTS`, `ACTION_REQUIRED`, and `DENIED`
 3. do not treat MQTT as authoritative; always use `status_url` for full workflow state
 
-<details>
-<summary>Status response example (HTTP 200)</summary>
+Status response example (HTTP 200)
 
 ```json
 {
@@ -653,7 +695,7 @@ Another rejected example:
 }
 ```
 
-</details>
+
 
 ## SafeCert API
 
@@ -670,8 +712,7 @@ Transport is currently integration-dependent (`HTTP`, event-driven, or another c
 At the moment, SADE does not have a live SafeCert HTTPS endpoint configured, so no real HTTP delivery occurs yet. SADE can create the outbound request and persist it internally, but SafeCert will not receive it over the network until that transport is wired.  
 Payload contract shape:
 
-<details>
-<summary>Payload example (`type: EVIDENCE_REQUIREMENT`)</summary>
+Payload example (`type: EVIDENCE_REQUIREMENT`)
 
 ```json
 {
@@ -719,7 +760,7 @@ Payload contract shape:
 }
 ```
 
-</details>
+
 
 ### `POST /attestation-submission`
 
@@ -728,13 +769,12 @@ Submits evidence/attestation to satisfy an action-required decision.
 SafeCert sends this payload to SADE using the endpoint below.  
 This endpoint returns a receipt, not the final workflow decision.
 
-<details>
-<summary>Request example</summary>
+Request example
 
 ```json
 {
   "idempotency_key": "dbafef25-44f2-449d-8bb6-85e4f9fc29f6",
-  "submission_time": "2026-03-09T20:02:00Z",
+  "submission_time_utc": "2026-03-09T20:02:00Z",
   "type": "EVIDENCE_ATTESTATION",
   "spec_version": "1.0",
   "attestation_id": "ATT-0001",
@@ -820,12 +860,11 @@ This endpoint returns a receipt, not the final workflow decision.
 }
 ```
 
-Required fields: `idempotency_key`, `submission_time`, `type`, `spec_version`, `attestation_id`, `in_response_to`, `subject`, `categories`, `signatures`, `evidence_refs`.
+Required fields: `idempotency_key`, `submission_time_utc`, `type`, `spec_version`, `attestation_id`, `in_response_to`, `subject`, `categories`, `signatures`, `evidence_refs`.
 
-</details>
 
-<details>
-<summary>Request receipt examples</summary>
+
+Request receipt examples
 
 Accepted (HTTP 202):
 
@@ -856,15 +895,12 @@ Rejected (HTTP 409):
 
 
 
-</details>
-
 ### `GET /actions/{action_id}`
 
 Reads the current action-required workflow state for one evidence request.  
 Use the `status_url` from `POST /attestation-submission`.
 
-<details>
-<summary>Status response example (HTTP 200)</summary>
+Status response example (HTTP 200)
 
 ```json
 {
@@ -893,7 +929,7 @@ Use the `status_url` from `POST /attestation-submission`.
 }
 ```
 
-</details>
+
 
 ## Telemetry Monitor API
 
@@ -903,30 +939,37 @@ Tracker-authoritative closeout endpoint.
 Use this to finalize a planned session and persist final telemetry for reputation.
 Idempotency is keyed by `flight_session_id`.
 
-<details>
-<summary>Request example</summary>
+Request example
 
 ```json
 {
   "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "report_time": "2026-03-09T19:05:00Z",
-  "actual_start_time": "2026-03-09T18:00:00Z",
-  "actual_end_time": "2026-03-09T19:03:00Z",
+  "report_time_utc": "2026-03-09T19:05:00Z",
   "telemetry_summary": {
     "altitude_min_m": 12.0,
     "altitude_max_m": 94.5,
-    "battery_start_pct": 98.0,
-    "battery_end_pct": 61.0,
-    "battery_voltage_start_v": 16.2,
-    "battery_voltage_end_v": 14.9
-  }
+    "distance_flown_m": 1250.0
+  },
+  "events": [
+    {
+      "type": "FLIGHT_SEGMENT",
+      "time_in_utc": "2026-03-09T18:00:00Z",
+      "time_out_utc": "2026-03-09T19:03:00Z"
+    }
+  ]
 }
 ```
 
-</details>
+SADE derives the actual flown window from the `events` list:
 
-<details>
-<summary>Scenario responses (HTTP 200)</summary>
+- earliest `FLIGHT_SEGMENT.time_in_utc`
+- latest `FLIGHT_SEGMENT.time_out_utc`
+
+For current Flight Monitor contract details and the event, incident-code, and payload-type conventions used in stored reputation records, see [SADE_CONTRACT.md](./FLIGHT_MONITOR/SADE_CONTRACT.md) and [REFERENCE_TABLES.md](./FLIGHT_MONITOR/REFERENCE_TABLES.md).
+
+
+
+Scenario responses (HTTP 200)
 
 Finalized:
 
@@ -950,6 +993,389 @@ Business failed:
 }
 ```
 
-</details>
+
+## Website Query APIs
+
+These endpoints are intended for read-oriented website or operator UI views.
+
+Common rules for both query endpoints:
+
+- at least one filter is required: `organization_id`, `pilot_id`, or `drone_id`
+- multiple filters use AND semantics
+- optional `limit` defaults to `100`
+- `limit` is capped at `200`
+
+### `GET /reputation-records`
+
+Primary Use: Website / operator UI
+
+Lists stored reputation records already persisted by SADE.
+
+Supported filters:
+
+- `organization_id`
+- `pilot_id`
+- `drone_id`
+- `limit`
+
+Response rows are ordered by the latest recorded activity time descending.
+
+Example request:
+
+- `GET /reputation-records?organization_id=org-001&pilot_id=pilot-001`
+
+Response example
+
+```json
+{
+  "reputation_records": [
+    {
+      "reputation_record_id": "772d0ca7-0f5d-4b63-9f33-f5d6240be205",
+      "evaluation_series_id": "series-001",
+      "pilot_id": "pilot-001",
+      "drone_id": "drone-001",
+      "flight_session_id": "flight-session-001",
+      "organization_id": "org-001",
+      "sade_zone_id": "zone-001",
+      "telemetry_summary": {
+        "altitude_max_m": 88.0,
+        "distance_flown_m": 1250.0
+      },
+      "declared_payload": {
+        "total_weight_kg": 2.5,
+        "components": [
+          {
+            "type": "CAMERA_01"
+          }
+        ]
+      },
+      "weather_observed": {
+        "max_wind_knots": 18.0,
+        "visibility_min_nm": 8.0,
+        "window_start_utc": "2026-03-09T18:00:00Z",
+        "window_end_utc": "2026-03-09T18:41:00Z"
+      },
+      "events": [
+        {
+          "type": "FLIGHT_SEGMENT",
+          "time_in_utc": "2026-03-09T18:00:00Z",
+          "time_out_utc": "2026-03-09T18:41:00Z",
+          "battery_state_in": {
+            "system_charge_pct": 98.0
+          },
+          "battery_state_out": {
+            "system_charge_pct": 61.0
+          }
+        },
+        {
+          "type": "INCIDENT",
+          "time_utc": "2026-03-09T18:41:00Z",
+          "incident_code": "0101-100"
+        }
+      ],
+      "created_at_utc": "2026-04-21T20:00:00Z"
+    }
+  ]
+}
+```
+
+Validation error example (HTTP 400):
+
+```json
+{
+  "error": {
+    "reason": "At least one filter is required: organization_id, pilot_id, or drone_id."
+  }
+}
+```
 
 
+### `GET /attestation-claims`
+
+Primary Use: Website / operator UI
+
+Lists stored attestation claims from real attestation workflow submissions and from internal testing/scenario seeding.
+
+Supported filters:
+
+- `organization_id`
+- `pilot_id`
+- `drone_id`
+- `limit`
+
+Filter semantics:
+
+- `organization_id` matches the stored attestation submission subject
+- `pilot_id` matches claim bindings with subject type `PILOT`
+- `drone_id` matches claim bindings with subject type `UAV`
+
+Response rows are ordered by claim issuance time descending when available, otherwise by submission receive time descending.
+
+Example request:
+
+- `GET /attestation-claims?organization_id=org-001&pilot_id=pilot-001`
+
+Response example
+
+```json
+{
+  "attestation_claims": [
+    {
+      "claim_id": "claim-001",
+      "submission_id": "submission-001",
+      "attestation_id": "ATT-0001",
+      "action_id": null,
+      "organization_id": "org-001",
+      "pilot_id": "pilot-001",
+      "drone_id": "drone-001",
+      "sade_zone_id": "zone-001",
+      "source": "TESTING",
+      "spec_type": "TESTING_ATTESTATION",
+      "spec_version": "1.0",
+      "received_at_utc": "2026-03-09T18:00:00Z",
+      "requirement_id": "req-part-107",
+      "category": "CERTIFICATION",
+      "expr": "PART_107",
+      "keyword": "PART_107",
+      "status": "SATISFIED",
+      "params": [],
+      "meta": {
+        "issuer": "TEST"
+      },
+      "issued_at_utc": null,
+      "expires_at_utc": null,
+      "evidence_ref": null,
+      "signature_ref": null,
+      "applicable_scopes": [
+        "PILOT"
+      ]
+    }
+  ]
+}
+```
+
+## Testing / Scenario Seeding APIs
+
+These endpoints are internal helpers for local, Docker, and AWS test scenarios.
+
+They are useful when the Decision Maker team or UI team wants richer seeded data without having to drive the full upstream workflow first.
+
+### `POST /testing/reputation-records`
+
+Primary Use: Testing / scenario seeding
+
+Creates a synthetic reputation record directly in SADE storage.
+
+Required fields:
+
+- `pilot_id`
+- `drone_id`
+- `sade_zone_id`
+- `events`
+
+Optional fields:
+
+- `organization_id`
+- `flight_session_id`
+- `evaluation_series_id`
+- `telemetry_summary`
+- `declared_payload`
+- `weather_observed`
+
+Request example
+
+```json
+{
+  "organization_id": "org-001",
+  "pilot_id": "pilot-001",
+  "drone_id": "drone-001",
+  "sade_zone_id": "zone-001",
+  "telemetry_summary": {
+    "altitude_max_m": 88.0,
+    "distance_flown_m": 1250.0
+  },
+  "declared_payload": {
+    "total_weight_kg": 2.5,
+    "components": [
+      {
+        "type": "CAMERA_01"
+      }
+    ]
+  },
+  "weather_observed": {
+    "max_wind_knots": 18.0,
+    "visibility_min_nm": 8.0,
+    "window_start_utc": "2026-03-09T18:00:00Z",
+    "window_end_utc": "2026-03-09T18:41:00Z"
+  },
+  "events": [
+    {
+      "type": "FLIGHT_SEGMENT",
+      "time_in_utc": "2026-03-09T18:00:00Z",
+      "time_out_utc": "2026-03-09T18:41:00Z",
+      "battery_state_in": {
+        "system_charge_pct": 98.0
+      },
+      "battery_state_out": {
+        "system_charge_pct": 61.0
+      }
+    },
+    {
+      "type": "INCIDENT",
+      "time_utc": "2026-03-09T18:41:00Z",
+      "incident_code": "0101-100"
+    }
+  ]
+}
+```
+
+Event, incident-code, and payload-type conventions for seeded reputation records follow [REFERENCE_TABLES.md](./FLIGHT_MONITOR/REFERENCE_TABLES.md).
+
+Response example
+
+```json
+{
+  "status": "CREATED",
+  "reputation_record": {
+    "reputation_record_id": "772d0ca7-0f5d-4b63-9f33-f5d6240be205",
+    "evaluation_series_id": null,
+    "pilot_id": "pilot-001",
+    "drone_id": "drone-001",
+    "flight_session_id": null,
+    "organization_id": "org-001",
+    "sade_zone_id": "zone-001",
+    "telemetry_summary": {
+      "altitude_max_m": 88.0,
+      "distance_flown_m": 1250.0
+    },
+    "declared_payload": {
+      "total_weight_kg": 2.5,
+      "components": [
+        {
+          "type": "CAMERA_01"
+        }
+      ]
+    },
+    "weather_observed": {
+      "max_wind_knots": 18.0,
+      "visibility_min_nm": 8.0,
+      "window_start_utc": "2026-03-09T18:00:00Z",
+      "window_end_utc": "2026-03-09T18:41:00Z"
+    },
+    "events": [
+      {
+        "type": "FLIGHT_SEGMENT",
+        "time_in_utc": "2026-03-09T18:00:00Z",
+        "time_out_utc": "2026-03-09T18:41:00Z",
+        "battery_state_in": {
+          "system_charge_pct": 98.0
+        },
+        "battery_state_out": {
+          "system_charge_pct": 61.0
+        }
+      },
+      {
+        "type": "INCIDENT",
+        "time_utc": "2026-03-09T18:41:00Z",
+        "incident_code": "0101-100"
+      }
+    ],
+    "created_at_utc": "2026-04-21T20:00:00Z"
+  }
+}
+```
+
+
+### `POST /testing/attestation-claims`
+
+Primary Use: Testing / scenario seeding
+
+Creates a synthetic attestation submission plus one or more normalized claims without requiring a real `action_id`.
+
+Important behavior:
+
+- at least one of `organization_id`, `pilot_id`, or `drone_id` is required
+- synthetic submissions created here intentionally store `action_id = null`
+- each claim may declare `applicable_scopes`
+- supported `applicable_scopes` values are `PILOT` and `UAV`
+- if a claim includes `PILOT`, the request must include `pilot_id`
+- if a claim includes `UAV`, the request must include `drone_id`
+
+Request example
+
+```json
+{
+  "organization_id": "org-001",
+  "pilot_id": "pilot-001",
+  "drone_id": "drone-001",
+  "sade_zone_id": "zone-001",
+  "received_at_utc": "2026-03-09T18:00:00Z",
+  "attestation_id": "test-fake-claim",
+  "claims": [
+    {
+      "requirement_id": "req-part-107",
+      "category": "CERTIFICATION",
+      "expr": "PART_107",
+      "keyword": "PART_107",
+      "status": "SATISFIED",
+      "params": [],
+      "meta": {
+        "issuer": "TEST"
+      },
+      "applicable_scopes": [
+        "PILOT"
+      ]
+    }
+  ]
+}
+```
+
+Response example
+
+```json
+{
+  "status": "CREATED",
+  "submission_id": "submission-001",
+  "attestation_id": "test-fake-claim",
+  "organization_id": "org-001",
+  "pilot_id": "pilot-001",
+  "drone_id": "drone-001",
+  "sade_zone_id": "zone-001",
+  "source": "TESTING",
+  "spec_type": "TESTING_ATTESTATION",
+  "spec_version": "1.0",
+  "received_at_utc": "2026-03-09T18:00:00Z",
+  "attestation_claims": [
+    {
+      "claim_id": "claim-001",
+      "submission_id": "submission-001",
+      "attestation_id": "test-fake-claim",
+      "action_id": null,
+      "organization_id": "org-001",
+      "pilot_id": "pilot-001",
+      "drone_id": "drone-001",
+      "sade_zone_id": "zone-001",
+      "source": "TESTING",
+      "spec_type": "TESTING_ATTESTATION",
+      "spec_version": "1.0",
+      "received_at_utc": "2026-03-09T18:00:00Z",
+      "requirement_id": "req-part-107",
+      "category": "CERTIFICATION",
+      "expr": "PART_107",
+      "keyword": "PART_107",
+      "status": "SATISFIED",
+      "params": [],
+      "meta": {
+        "issuer": "TEST"
+      },
+      "issued_at_utc": null,
+      "expires_at_utc": null,
+      "evidence_ref": null,
+      "signature_ref": null,
+      "applicable_scopes": [
+        "PILOT"
+      ]
+    }
+  ]
+}
+```
