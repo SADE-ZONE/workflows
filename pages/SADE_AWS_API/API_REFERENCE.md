@@ -4,6 +4,8 @@
 
 This is the client-facing API contract for teams integrating with the deployed SADE AWS runtime.
 
+We attempt to use standard HTTP status code as stipulated in: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
+
 Quantities, units, timestamp format, and coordinate conventions follow [./QUANTITIES_AND_UNITS.md](./QUANTITIES_AND_UNITS.md).
 
 ## Base URL
@@ -15,81 +17,37 @@ Quantities, units, timestamp format, and coordinate conventions follow [./QUANTI
 1. `POST` endpoints require `Content-Type: application/json`.
 2. Workflow `POST` endpoints require `idempotency_key`, except `POST /exit-request` and `POST /tracker-session-finalized`, which deduplicate by `flight_session_id`.
 3. Async workflow `POST` endpoints return an acknowledgment first, not the final business outcome.
-4. `POST /entry-request` and `POST /attestation-submission` return `RequestReceipt` with HTTP `202` on acceptance.
-5. `POST /exit-request` returns an async acknowledgment with HTTP `202` on acceptance.
-6. `POST /tracker-session-finalized` remains synchronous and returns its final result contract.
-7. Validation/transport errors use HTTP `400` or `500`.
-
-This async design is deliberate.
-
-`POST /entry-request` is not modeled as a synchronous decision RPC because two stages in the workflow can vary significantly in runtime:
-
-1. The decision adapter itself may take time. In realistic deployments this may involve an LLM or another external reasoning component, which can be slow or variable under load.
-2. The workflow may become `ACTION_REQUIRED`, which introduces an attestation step. If the required evidence is not already on record, a human-in-the-loop process is needed before SafeCert can respond.
-
-If SADE tried to keep the original HTTP request open across those stages, the system would be exposed to:
-
-1. client-side timeout behavior
-2. load balancer and gateway timeout limits
-3. dropped long-lived connections
-4. retry duplication under slow downstream dependencies
-5. poor operator UX because some requests would return quickly and others would appear to hang
-
-The chosen contract is therefore:
-
-1. accept or reject the request quickly
-2. return a `status_url`
-3. let the workflow continue asynchronously and event-driven inside SADE
-4. let operators check that URL directly, or view the same information in a UI
-
-Registry and status-query endpoints still use the standard HTTP error envelope:
-
-```json
-{
-  "error": {
-    "reason": "..."
-  }
-}
-```
-
-## Quick terminology
-
-1. `UAV model`: the drone type/spec capabilities (for example wind tolerance and temperature limits).
-2. `UAV`: a specific drone unit that references one `uav-model`.
-3. `Pilot`: the operator identity and organization.
-4. `UAV organization`: the organization that owns or controls a specific UAV record.
-5. `Zone`: the SADE-managed flight area (polygon_geojson + altitude ceiling).
-6. `Upsert`: create the record if it does not exist, or update it if it already exists.
+4. Validation/transport errors use HTTP `400` or `500`.
 
 ## Route list
 
-- `GET /health`: service liveness check.
-- `POST /entry-request`: submit an entry workflow for async processing.
-- `GET /entry-requests/{evaluation_series_id}`: fetch authoritative entry workflow status.
-- `POST /exit-request`: record operator intent to leave early and queue Flight Monitor delivery.
-- `POST /attestation-submission`: submit attestation evidence for an open action.
-- `GET /actions/{action_id}`: fetch authoritative action-required status.
-- `POST /tracker-session-finalized`: finalize a flight session from tracker telemetry.
-- `GET /reputation-records`: list stored reputation records filtered by organization, pilot, and/or UAV.
-- `GET /attestation-claims`: list stored attestation claims filtered by organization, pilot, and/or UAV.
-- `POST /testing/reputation-records`: create a synthetic reputation record for testing/scenario seeding.
-- `POST /testing/attestation-claims`: create synthetic attestation claims for testing/scenario seeding.
-- `POST /registry/uav-model`: create or update one UAV model.
-- `POST /registry/uav`: create or update one UAV.
-- `POST /registry/pilot`: create or update one pilot.
-- `POST /registry/zone`: create or update one zone.
-- `GET /registry/uav-models`: list all UAV models.
-- `GET /registry/uavs`: list UAVs, optionally filtered by organization.
-- `GET /registry/pilots`: list pilots, optionally filtered by organization.
-- `GET /registry/zones`: list all zones.
-- `GET /registry/uav-model/{model_id}`: fetch one UAV model by id.
-- `GET /registry/uav/{drone_id}`: fetch one UAV by id.
-- `GET /registry/pilot/{pilot_id}`: fetch one pilot by id.
-- `GET /registry/zone/{sade_zone_id}`: fetch one zone by id.
-- `DELETE /registry/uav-model/{model_id}`: delete one UAV model if unused.
-- `DELETE /registry/uav/{drone_id}`: delete one UAV if no active workflow depends on it.
-- `DELETE /registry/pilot/{pilot_id}`: delete one pilot if no active workflow depends on it.
-- `DELETE /registry/zone/{sade_zone_id}`: delete one zone if no active workflow depends on it.
+- [`POST /registry/uav-model`](#post-registryuav-model): create or update one UAV model.
+- [`POST /registry/uav`](#post-registryuav): create or update one UAV.
+- [`POST /registry/pilot`](#post-registrypilot): create or update one pilot.
+- [`POST /registry/zone`](#post-registryzone): create or update one zone.
+- [`GET /registry/uav-model/{model_id}`](#registry-get-endpoints): fetch one UAV model by id.
+- [`GET /registry/uav/{drone_id}`](#registry-get-endpoints): fetch one UAV by id.
+- [`GET /registry/pilot/{pilot_id}`](#registry-get-endpoints): fetch one pilot by id.
+- [`GET /registry/zone/{sade_zone_id}`](#registry-get-endpoints): fetch one zone by id.
+- [`GET /registry/uav-models`](#registry-collection-endpoints): list all UAV models.
+- [`GET /registry/uavs`](#registry-collection-endpoints): list UAVs, optionally filtered by organization.
+- [`GET /registry/pilots`](#registry-collection-endpoints): list pilots, optionally filtered by organization.
+- [`GET /registry/zones`](#registry-collection-endpoints): list all zones.
+- [`DELETE /registry/uav-model/{model_id}`](#registry-delete-endpoints): delete one UAV model if unused.
+- [`DELETE /registry/uav/{drone_id}`](#registry-delete-endpoints): delete one UAV if no active workflow depends on it.
+- [`DELETE /registry/pilot/{pilot_id}`](#registry-delete-endpoints): delete one pilot if no active workflow depends on it.
+- [`DELETE /registry/zone/{sade_zone_id}`](#registry-delete-endpoints): delete one zone if no active workflow depends on it.
+- [`GET /health`](#get-health): service liveness check.
+- [`POST /entry-request`](#post-entry-request): submit an entry workflow for async processing.
+- [`GET /entry-requests/{evaluation_series_id}`](#get-entry-requestsevaluation_series_id): fetch authoritative entry workflow status.
+- [`POST /exit-request`](#post-exit-request): record operator intent to leave early and queue Flight Monitor delivery.
+- [`POST /attestation-submission`](#post-attestation-submission): submit attestation evidence for an open action.
+- [`GET /actions/{action_id}`](#get-actionsaction_id): fetch authoritative action-required status.
+- [`POST /tracker-session-finalized`](#post-tracker-session-finalized): finalize a flight session from tracker telemetry.
+- [`GET /reputation-records`](#get-reputation-records): list stored reputation records filtered by organization, pilot, and/or UAV.
+- [`GET /attestation-claims`](#get-attestation-claims): list stored attestation claims filtered by organization, pilot, and/or UAV.
+- [`POST /testing/reputation-records`](#post-testingreputation-records): create a synthetic reputation record for testing/scenario seeding.
+- [`POST /testing/attestation-claims`](#post-testingattestation-claims): create synthetic attestation claims for testing/scenario seeding.
 
 ## Supported filters
 
@@ -102,12 +60,17 @@ Registry and status-query endpoints still use the standard HTTP error envelope:
 - `GET /attestation-claims?organization_id=org-001`: limit claims to one organization.
 - `GET /attestation-claims?pilot_id=pilot-001`: limit claims to one pilot-bound subject.
 
-## Registry API
+# Registry API
 
 The registry is the required reference data layer.  
 Create these records first, then use workflow routes like `/entry-request`.
 
-### `POST /registry/uav-model`
+## `POST /registry/uav-model`
+
+<a id="post-registry-uav-model"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Registers a UAV model in SADE.  
 Uses upsert behavior by `model_id`.
@@ -145,7 +108,14 @@ Response:
 
 
 
-### `POST /registry/uav`
+</details>
+
+## `POST /registry/uav`
+
+<a id="post-registry-uav"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Registers a specific UAV (drone) and links it to its `model_id`.  
 Uses upsert behavior by `drone_id`.
@@ -179,7 +149,14 @@ Response:
 
 
 
-### `POST /registry/pilot`
+</details>
+
+## `POST /registry/pilot`
+
+<a id="post-registry-pilot"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Registers a pilot identity used in entry and attestation workflows.  
 Uses upsert behavior by `pilot_id`.
@@ -209,7 +186,14 @@ Response:
 
 
 
-### `POST /registry/zone`
+</details>
+
+## `POST /registry/zone`
+
+<a id="post-registry-zone"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Registers a SADE zone boundary and altitude policy.  
 Uses upsert behavior by `sade_zone_id`.
@@ -265,12 +249,18 @@ Response:
 
 
 
-### Registry GET endpoints
+</details>
 
+## Registry GET endpoints
+
+<a id="registry-get-endpoints"></a>
 - `GET /registry/uav-model/{model_id}`
 - `GET /registry/uav/{drone_id}`
 - `GET /registry/pilot/{pilot_id}`
 - `GET /registry/zone/{sade_zone_id}`
+
+<details>
+<summary>Details and examples</summary>
 
 Fetches one registry record by id.  
 Returns HTTP `404` if the record does not exist.
@@ -299,14 +289,18 @@ Not found example (HTTP 404):
 }
 ```
 
+</details>
 
+## Registry collection endpoints
 
-### Registry collection endpoints
-
+<a id="registry-collection-endpoints"></a>
 - `GET /registry/uav-models`
 - `GET /registry/uavs`
 - `GET /registry/pilots`
 - `GET /registry/zones`
+
+<details>
+<summary>Details and examples</summary>
 
 Fetches full registry collections.
 
@@ -355,14 +349,18 @@ Example `GET /registry/pilots?organization_id=org-001`:
 }
 ```
 
+</details>
 
+## Registry delete endpoints
 
-### Registry delete endpoints
-
+<a id="registry-delete-endpoints"></a>
 - `DELETE /registry/uav-model/{model_id}`
 - `DELETE /registry/uav/{drone_id}`
 - `DELETE /registry/pilot/{pilot_id}`
 - `DELETE /registry/zone/{sade_zone_id}`
+
+<details>
+<summary>Details and examples</summary>
 
 Deletes one registry record by id.
 
@@ -401,11 +399,16 @@ Blocked delete (HTTP 409):
 }
 ```
 
+</details>
 
+# Operator APIs
 
-## Operator APIs
+## `GET /health`
 
-### `GET /health`
+<a id="get-health"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Light service liveness check used by humans, scripts, and load balancer health checks.
 
@@ -420,17 +423,50 @@ Response example
 
 
 
-### `POST /entry-request`
+</details>
 
-Requests authorization for a UAV + pilot to enter a specific zone for a time window.  
-This is now an asynchronous command endpoint.  
-It returns a receipt, not the final decision body.
+## `POST /entry-request`
 
-This is intentional, not temporary. The endpoint acknowledges durable workflow acceptance first, then the caller follows the returned `status_url` for progress and outcome.
+<a id="post-entry-request"></a>
+<details>
+<summary>Details and examples</summary>
 
-Business validation note:
 
-- SADE rejects the request if `pilot.organization_id` and `uav.organization_id` do not match.
+Requests authorization for a UAV + pilot to enter a specific zone for a time window.
+
+`POST /entry-request` is not modeled as a synchronous decision RPC because two stages in the workflow can vary significantly in runtime:
+
+1. The decision adapter itself may take time. In realistic deployments this may involve an LLM or another external reasoning component, which can be slow or variable under load.
+2. The workflow may become `ACTION_REQUIRED`, which introduces an attestation step. If the required evidence is not already on record, a human-in-the-loop process is needed before SafeCert can respond.
+
+If SADE tried to keep the original HTTP request open across those stages, the system would be exposed to:
+
+1. client-side timeout behavior
+2. load balancer and gateway timeout limits
+3. dropped long-lived connections
+4. retry duplication under slow downstream dependencies
+5. poor operator UX because some requests would return quickly and others would appear to hang
+
+The chosen contract is therefore:
+
+1. accept or reject the request quickly
+2. return a `status_url`
+3. let the workflow continue asynchronously and event-driven inside SADE
+4. let operators check that URL directly, or view the same information in a UI
+
+Registry and status-query endpoints still use the standard HTTP error envelope:
+
+```json
+{
+  "error": {
+    "reason": "..."
+  }
+}
+```
+
+The endpoint acknowledges durable workflow acceptance first, then the caller follows the returned `status_url` for progress and outcome.
+
+
 
 Request example
 
@@ -586,8 +622,6 @@ Optional notifications:
 - the topic is derived by SADE; callers do not provide a topic string
 - `status_url` remains authoritative even when notifications are enabled
 
-
-
 Response examples
 
 Accepted (HTTP 202):
@@ -598,7 +632,6 @@ Accepted (HTTP 202):
   "request_kind": "ENTRY_REQUEST",
   "message": "Entry request accepted for processing.",
   "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
-  "action_id": null,
   "status_url": "/entry-requests/8af4f8f3-5429-4d80-805d-2f6dc3f72159",
   "notifications": {
     "entry_request_updates": {
@@ -619,16 +652,20 @@ Rejected (HTTP 409):
   "status": "REJECTED",
   "request_kind": "ENTRY_REQUEST",
   "message": "Missing required registry records (pilot/uav/zone/model).",
-  "failure_code": "MISSING_REGISTRY_RECORDS",
-  "evaluation_series_id": null,
-  "action_id": null,
-  "status_url": null
+  "failure_code": "MISSING_REGISTRY_RECORDS"
 }
 ```
 
 
 
-### `GET /entry-requests/{evaluation_series_id}`
+</details>
+
+## `GET /entry-requests/{evaluation_series_id}`
+
+<a id="get-entry-requests-evaluation-series-id"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Reads the current workflow state for one logical entry request.  
 Use the `status_url` from `POST /entry-request`.
@@ -645,7 +682,10 @@ If MQTT notifications were enabled on the request:
 2. expect retained summary notifications for `APPROVED`, `APPROVED_CONSTRAINTS`, `ACTION_REQUIRED`, and `DENIED`
 3. do not treat MQTT as authoritative; always use `status_url` for full workflow state
 
-Status response example (HTTP 200)
+Polling response examples (HTTP 200)
+
+<details>
+<summary>ACTION_REQUIRED example</summary>
 
 ```json
 {
@@ -654,6 +694,16 @@ Status response example (HTTP 200)
     "lifecycle_status": "COMPLETED",
     "decision": "ACTION_REQUIRED",
     "reason": "Stub forced action required decision.",
+    "constraints": [],
+    "requested_entry_time_utc": "2026-03-09T18:00:00Z",
+    "requested_exit_time_utc": "2026-03-09T19:00:00Z",
+    "pilot_id": "pilot-001",
+    "drone_id": "drone-001",
+    "sade_zone_id": "zone-001",
+    "organization_id": "org-001",
+    "declared_payload": {
+      "total_weight_kg": 2.5
+    },
     "flight_session_id": null,
     "action_required": {
       "action_id": "f9ce1f1f-e7b7-40af-af6d-b6ba8cae0fe5",
@@ -661,8 +711,8 @@ Status response example (HTTP 200)
       "decision": null,
       "retries_used": 0,
       "max_retries": 1,
-      "last_failure_code": null,
-      "last_failure_reason": null,
+      "failure_code": null,
+      "reason": null,
       "evidence_requirement_spec": {
         "type": "EVIDENCE_REQUIREMENT",
         "spec_version": "1.0",
@@ -670,36 +720,165 @@ Status response example (HTTP 200)
       },
       "submitted_attestation_refs": []
     },
-    "history": [
-      {
-        "evaluation_id": "0a3a...",
-        "entry_request_kind": "ENTRY",
-        "lifecycle_status": "COMPLETED",
-        "decision": "ACTION_REQUIRED",
-        "reason": "Stub forced action required decision."
-      }
-    ]
+    "history": []
   }
 }
 ```
 
-Another rejected example:
+</details>
+
+<details>
+<summary>APPROVED example</summary>
+
+```json
+{
+  "entry_request": {
+    "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
+    "lifecycle_status": "COMPLETED",
+    "decision": "APPROVED",
+    "reason": "Request approved.",
+    "constraints": [],
+    "requested_entry_time_utc": "2026-03-09T18:00:00Z",
+    "requested_exit_time_utc": "2026-03-09T19:00:00Z",
+    "pilot_id": "pilot-001",
+    "drone_id": "drone-001",
+    "sade_zone_id": "zone-001",
+    "organization_id": "org-001",
+    "declared_payload": {
+      "total_weight_kg": 2.5
+    },
+    "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+    "action_required": null,
+    "history": []
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>APPROVED_CONSTRAINTS example</summary>
+
+```json
+{
+  "entry_request": {
+    "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
+    "lifecycle_status": "COMPLETED",
+    "decision": "APPROVED_CONSTRAINTS",
+    "reason": "Request approved with operational constraints.",
+    "constraints": [
+      {
+        "code": "MAX_ALTITUDE_M",
+        "value": 90
+      },
+      {
+        "code": "DAYLIGHT_ONLY",
+        "value": true
+      }
+    ],
+    "requested_entry_time_utc": "2026-03-09T18:00:00Z",
+    "requested_exit_time_utc": "2026-03-09T19:00:00Z",
+    "pilot_id": "pilot-001",
+    "drone_id": "drone-001",
+    "sade_zone_id": "zone-001",
+    "organization_id": "org-001",
+    "declared_payload": {
+      "total_weight_kg": 2.5
+    },
+    "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+    "action_required": null,
+    "history": []
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>DENIED example</summary>
+
+```json
+{
+  "entry_request": {
+    "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
+    "lifecycle_status": "COMPLETED",
+    "decision": "DENIED",
+    "reason": "Request denied due to operational risk.",
+    "constraints": [],
+    "requested_entry_time_utc": "2026-03-09T18:00:00Z",
+    "requested_exit_time_utc": "2026-03-09T19:00:00Z",
+    "pilot_id": "pilot-001",
+    "drone_id": "drone-001",
+    "sade_zone_id": "zone-001",
+    "organization_id": "org-001",
+    "declared_payload": {
+      "total_weight_kg": 2.5
+    },
+    "flight_session_id": null,
+    "action_required": null,
+    "history": []
+  }
+}
+```
+
+</details>
+
+
+
+
+</details>
+
+## `POST /exit-request`
+
+<a id="post-exit-request"></a>
+<details>
+<summary>Details and examples</summary>
+
+
+Operator exit-intent endpoint.  
+Use this when the drone plans to leave early. This does not finalize the session. SADE queues the intent for Flight Monitor, and Flight Monitor decides the real end once the drone is offline.
+Idempotency is keyed by `flight_session_id`.
+
+Request example
+
+```json
+{
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+  "request_time_utc": "2026-03-09T18:41:00Z",
+  "reason": "Returning home early"
+}
+```
+
+Request receipt examples
+
+Accepted (HTTP 202):
+
+```json
+{
+  "status": "ACCEPTED",
+  "request_kind": "EXIT_REQUEST",
+  "message": "Exit request accepted and queued for Flight Monitor.",
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834"
+}
+```
+
+Rejected (HTTP 409):
 
 ```json
 {
   "status": "REJECTED",
-  "request_kind": "ENTRY_REQUEST",
-  "message": "Requested window overlaps an existing pending or planned request for the same drone and pilot.",
-  "failure_code": "OVERLAPPING_SCHEDULING_SUBJECT_WINDOW",
-  "evaluation_series_id": null,
-  "action_id": null,
-  "status_url": null
+  "request_kind": "EXIT_REQUEST",
+  "message": "Flight session not found: 8c189f91-0348-4a15-a6f0-23377dca7834",
+  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
+  "failure_code": "FLIGHT_SESSION_NOT_FOUND"
 }
 ```
 
 
 
-## SafeCert API
+</details>
+
+# SafeCert API
 
 When SADE requests evidence from SafeCert, it sends an `EVIDENCE_REQUIREMENT` payload that includes a `request_id`.
 
@@ -708,7 +887,10 @@ Important correlation rule:
 1. SafeCert receives this correlation key as `request_id` in SADE's evidence request payload.
 2. SafeCert must send that exact same value back in `in_response_to` when calling `/attestation-submission`.
 
-### SADE -> SafeCert attestation request (outbound from SADE)
+## SADE -> SafeCert attestation request (outbound from SADE)
+
+<details>
+<summary>Details and examples</summary>
 
 Transport is currently integration-dependent (`HTTP`, event-driven, or another channel to be finalized).  
 At the moment, SADE does not have a live SafeCert HTTPS endpoint configured, so no real HTTP delivery occurs yet. SADE can create the outbound request and persist it internally, but SafeCert will not receive it over the network until that transport is wired.  
@@ -762,9 +944,14 @@ Payload example (`type: EVIDENCE_REQUIREMENT`)
 }
 ```
 
+</details>
 
+## `POST /attestation-submission`
 
-### `POST /attestation-submission`
+<a id="post-attestation-submission"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Submits evidence/attestation to satisfy an action-required decision.  
 `in_response_to` must match the `request_id` from SADE's prior `EVIDENCE_REQUIREMENT` payload.
@@ -864,8 +1051,6 @@ Request example
 
 Required fields: `idempotency_key`, `submission_time_utc`, `type`, `spec_version`, `attestation_id`, `in_response_to`, `subject`, `categories`, `signatures`, `evidence_refs`.
 
-
-
 Response examples
 
 Accepted (HTTP 202):
@@ -889,15 +1074,20 @@ Rejected (HTTP 409):
   "request_kind": "ATTESTATION_SUBMISSION",
   "message": "Unknown action_id.",
   "failure_code": "UNKNOWN_ACTION_ID",
-  "evaluation_series_id": null,
-  "action_id": "UNKNOWN-ACTION-ID",
-  "status_url": null
+  "action_id": "UNKNOWN-ACTION-ID"
 }
 ```
 
 
 
-### `GET /actions/{action_id}`
+</details>
+
+## `GET /actions/{action_id}`
+
+<a id="get-actions-action-id"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Reads the current action-required workflow state for one evidence request.  
 Use the `status_url` from `POST /attestation-submission`.
@@ -914,70 +1104,27 @@ Status response example (HTTP 200)
     "reason": "Missing required registry records (pilot/uav/zone/model).",
     "failure_code": "MISSING_REGISTRY_RECORDS",
     "flight_session_id": null,
-    "action_required": {
-      "action_id": "f9ce1f1f-e7b7-40af-af6d-b6ba8cae0fe5",
-      "lifecycle_status": "OPEN",
-      "decision": null,
-      "retries_used": 0,
-      "max_retries": 1,
-      "last_failure_code": "MISSING_REGISTRY_RECORDS",
-      "last_failure_reason": "Missing required registry records (pilot/uav/zone/model).",
-      "evidence_requirement_spec": {
-        "categories": []
-      },
-      "submitted_attestation_refs": []
-    }
+    "retries_used": 0,
+    "max_retries": 1,
+    "evidence_requirement_spec": {
+      "categories": []
+    },
+    "submitted_attestation_refs": []
   }
 }
 ```
 
 
 
-### `POST /exit-request`
+</details>
+# Telemetry Monitor API
 
-Operator exit-intent endpoint.  
-Use this when the drone plans to leave early. This does not finalize the session. SADE queues the intent for Flight Monitor, and Flight Monitor decides the real end once the drone is offline.
-Idempotency is keyed by `flight_session_id`.
+## `POST /tracker-session-finalized`
 
-Request example
+<a id="post-tracker-session-finalized"></a>
+<details>
+<summary>Details and examples</summary>
 
-```json
-{
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "request_time_utc": "2026-03-09T18:41:00Z",
-  "reason": "Returning home early"
-}
-```
-
-Request receipt examples
-
-Accepted (HTTP 202):
-
-```json
-{
-  "status": "ACCEPTED",
-  "request_kind": "EXIT_REQUEST",
-  "message": "Exit request accepted and queued for Flight Monitor.",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834"
-}
-```
-
-Rejected (HTTP 409):
-
-```json
-{
-  "status": "REJECTED",
-  "request_kind": "EXIT_REQUEST",
-  "message": "Flight session not found: 8c189f91-0348-4a15-a6f0-23377dca7834",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "failure_code": "FLIGHT_SESSION_NOT_FOUND"
-}
-```
-
-
-## Telemetry Monitor API
-
-### `POST /tracker-session-finalized`
 
 Tracker-authoritative closeout endpoint.  
 Use this to finalize a planned session and persist final telemetry for reputation.
@@ -1011,8 +1158,6 @@ SADE derives the actual flown window from the `events` list:
 
 For current Flight Monitor contract details and the event, incident-code, and payload-type conventions used in stored reputation records, see [SADE_CONTRACT.md](./FLIGHT_MONITOR/SADE_CONTRACT.md) and [REFERENCE_TABLES.md](./FLIGHT_MONITOR/REFERENCE_TABLES.md).
 
-
-
 Scenario responses (HTTP 200)
 
 Finalized:
@@ -1038,7 +1183,10 @@ Business failed:
 ```
 
 
-## Website Query APIs
+
+</details>
+
+# Website Query APIs
 
 These endpoints are intended for read-oriented website or operator UI views.
 
@@ -1049,7 +1197,12 @@ Common rules for both query endpoints:
 - optional `limit` defaults to `100`
 - `limit` is capped at `200`
 
-### `GET /reputation-records`
+## `GET /reputation-records`
+
+<a id="get-reputation-records"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Primary Use: Website / operator UI
 
@@ -1134,7 +1287,15 @@ Validation error example (HTTP 400):
 ```
 
 
-### `GET /attestation-claims`
+
+</details>
+
+## `GET /attestation-claims`
+
+<a id="get-attestation-claims"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Primary Use: Website / operator UI
 
@@ -1198,13 +1359,22 @@ Response example
 }
 ```
 
-## Testing / Scenario Seeding APIs
+
+
+</details>
+
+# Testing / Scenario Seeding APIs
 
 These endpoints are internal helpers for local, Docker, and AWS test scenarios.
 
 They are useful when the Decision Maker team or UI team wants richer seeded data without having to drive the full upstream workflow first.
 
-### `POST /testing/reputation-records`
+## `POST /testing/reputation-records`
+
+<a id="post-testing-reputation-records"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Primary Use: Testing / scenario seeding
 
@@ -1330,7 +1500,15 @@ Response example
 ```
 
 
-### `POST /testing/attestation-claims`
+
+</details>
+
+## `POST /testing/attestation-claims`
+
+<a id="post-testing-attestation-claims"></a>
+<details>
+<summary>Details and examples</summary>
+
 
 Primary Use: Testing / scenario seeding
 
@@ -1373,6 +1551,7 @@ Request example
   ]
 }
 ```
+
 
 Response example
 
@@ -1423,3 +1602,4 @@ Response example
   ]
 }
 ```
+</details>
