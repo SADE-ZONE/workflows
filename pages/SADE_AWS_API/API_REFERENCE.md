@@ -1,6 +1,6 @@
 # SADE Client API Reference (AWS)
 
-**Last Updated On:** 2026-04-22
+**Last Updated On:** 2026-04-27
 
 This is the client-facing API contract for teams integrating with the deployed SADE AWS runtime.
 
@@ -10,14 +10,15 @@ Quantities, units, timestamp format, and coordinate conventions follow [./QUANTI
 
 ## Base URL
 
-`http://sarec-sade-use2-api-alb-1413405053.us-east-2.elb.amazonaws.com`
+`https://api.sadezone.org`
 
 ## Common rules
 
 1. `POST` endpoints require `Content-Type: application/json`.
 2. Workflow `POST` endpoints require `idempotency_key`, except `POST /exit-request` and `POST /tracker-session-finalized`, which deduplicate by `flight_session_id`.
 3. Async workflow `POST` endpoints return an acknowledgment first, not the final business outcome.
-4. Validation/transport errors use HTTP `400` or `500`.
+4. Boundary-visible request failures use a standardized envelope with `status`, `failure_code`, `message`, and `details`.
+5. Validation failures use `status="INVALID"` with HTTP `400`; admissibility/business rejections use `status="REJECTED"` with `409` or `404`.
 
 ## Route list
 
@@ -283,9 +284,10 @@ Not found example (HTTP 404):
 
 ```json
 {
-  "error": {
-    "reason": "UAV not found: drone-999"
-  }
+  "status": "REJECTED",
+  "failure_code": "UAV_NOT_FOUND",
+  "message": "UAV not found: drone-999",
+  "details": []
 }
 ```
 
@@ -393,9 +395,10 @@ Blocked delete (HTTP 409):
 
 ```json
 {
-  "error": {
-    "reason": "Cannot delete UAV referenced by active workflows or planned sessions: drone-001"
-  }
+  "status": "REJECTED",
+  "failure_code": "REGISTRY_DELETE_BLOCKED",
+  "message": "Cannot delete UAV referenced by active workflows or planned sessions: drone-001",
+  "details": []
 }
 ```
 
@@ -454,13 +457,19 @@ The chosen contract is therefore:
 3. let the workflow continue asynchronously and event-driven inside SADE
 4. let operators check that URL directly, or view the same information in a UI
 
-Registry and status-query endpoints still use the standard HTTP error envelope:
+Boundary-visible failures use one common error envelope:
 
 ```json
 {
-  "error": {
-    "reason": "..."
-  }
+  "status": "INVALID",
+  "failure_code": "INVALID_REQUEST_PAYLOAD",
+  "message": "Request payload failed validation.",
+  "details": [
+    {
+      "location": ["field_name"],
+      "type": "validation_error"
+    }
+  ]
 }
 ```
 
@@ -629,7 +638,6 @@ Accepted (HTTP 202):
 ```json
 {
   "status": "ACCEPTED",
-  "request_kind": "ENTRY_REQUEST",
   "message": "Entry request accepted for processing.",
   "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
   "status_url": "/entry-requests/8af4f8f3-5429-4d80-805d-2f6dc3f72159",
@@ -650,9 +658,9 @@ Rejected (HTTP 409):
 ```json
 {
   "status": "REJECTED",
-  "request_kind": "ENTRY_REQUEST",
   "message": "Missing required registry records (pilot/uav/zone/model).",
-  "failure_code": "MISSING_REGISTRY_RECORDS"
+  "failure_code": "MISSING_REGISTRY_RECORDS",
+  "details": []
 }
 ```
 
@@ -856,7 +864,6 @@ Accepted (HTTP 202):
 ```json
 {
   "status": "ACCEPTED",
-  "request_kind": "EXIT_REQUEST",
   "message": "Exit request accepted and queued for Flight Monitor.",
   "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834"
 }
@@ -867,10 +874,9 @@ Rejected (HTTP 409):
 ```json
 {
   "status": "REJECTED",
-  "request_kind": "EXIT_REQUEST",
   "message": "Flight session not found: 8c189f91-0348-4a15-a6f0-23377dca7834",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "failure_code": "FLIGHT_SESSION_NOT_FOUND"
+  "failure_code": "FLIGHT_SESSION_NOT_FOUND",
+  "details": []
 }
 ```
 
@@ -1058,7 +1064,6 @@ Accepted (HTTP 202):
 ```json
 {
   "status": "ACCEPTED",
-  "request_kind": "ATTESTATION_SUBMISSION",
   "message": "Attestation submission accepted for processing.",
   "evaluation_series_id": "8af4f8f3-5429-4d80-805d-2f6dc3f72159",
   "action_id": "f9ce1f1f-e7b7-40af-af6d-b6ba8cae0fe5",
@@ -1071,10 +1076,9 @@ Rejected (HTTP 409):
 ```json
 {
   "status": "REJECTED",
-  "request_kind": "ATTESTATION_SUBMISSION",
   "message": "Unknown action_id.",
   "failure_code": "UNKNOWN_ACTION_ID",
-  "action_id": "UNKNOWN-ACTION-ID"
+  "details": []
 }
 ```
 
@@ -1280,9 +1284,10 @@ Validation error example (HTTP 400):
 
 ```json
 {
-  "error": {
-    "reason": "At least one filter is required: organization_id, pilot_id, or drone_id."
-  }
+  "status": "INVALID",
+  "failure_code": "MISSING_QUERY_FILTER",
+  "message": "At least one filter is required: organization_id, pilot_id, or drone_id.",
+  "details": []
 }
 ```
 
