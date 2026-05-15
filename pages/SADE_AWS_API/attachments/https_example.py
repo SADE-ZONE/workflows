@@ -16,6 +16,6 @@ session.verify = True # This is True by default, but we set it explicitly here f
 session.cert = (CLIENT_CERT, PRIVATE_KEY)
 
 response = session.get("https://api.sadezone.org/health")
-print("Response 1:")
+print("Response:")
 print(response.status_code)
 print(response.json())
