@@ -153,27 +153,25 @@ apt install mosquitto-clients
 
 #### Example script
 ```bash
-CA_FILE="./CAs.crt"
+#!/usr/bin/env bash
+
 CLIENT_CERT="./user123.crt"
 PRIVATE_KEY="./user123.key"
 
 mosquitto_sub \
   -h "a3dpdfmwa109lg-ats.iot.us-east-2.amazonaws.com" \
   -p 8883 \
-  --cafile ./CAs.crt \
-  --cert ./user123.crt \
-  --key ./user123.key \
+  --cert "$CLIENT_CERT" \
+  --key "$PRIVATE_KEY" \
   -i "EXAMPLE_MOS_SUB-123" \
   -t test/example
-
 
 mosquitto_pub \
   -h "a3dpdfmwa109lg-ats.iot.us-east-2.amazonaws.com" \
   -p 8883 \
   -i "EXAMPLE-CLIENT_pub" \
-  --cafile CAs.crt \
-  --cert user123.crt \
-  --key user123.key \
+  --cert "$CLIENT_CERT" \
+  --key "$PRIVATE_KEY" \
   --keyform pem \
   -t test/example \
   -m "hello world"
