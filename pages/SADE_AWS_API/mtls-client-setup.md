@@ -120,12 +120,21 @@ Once you have your `.csr` file, please send it to us. We'll use it to generate y
 
 Also, if you haven't already, download the CA certificate file: [CAs.crt](attachments/CAs.crt). You'll want to keep this file along with your private key and certificate. These files are needed to connect to the SADE AWS IoT Core endpoint. Furthermore, you'll need these files to connect to the SADE HTTP endpoints.
 
+Once you get your certificate (a `.crt` file), you're ready to connect to AWS IoT Core and the SADE HTTPS APIs.
+
+> [!NOTE]
+> **Your first connection to AWS IoT Core may be dropped when you're using a newly issued certificate. Please wait about 10 seconds and try again. The second connection attempt should succeed.**
+> 
+> The first time you connect, AWS IoT Core triggers JITP (Just-in-Time Provisioning). During this process, AWS IoT resources are created on your behalf. But your first connection may terminate because IoT core can't authenticate you until these resources exist. 
+
 ### How to connect to AWS IoT Core with python and `paho-mqtt`
 
 First make sure you have paho:
 ```bash
 pip install paho-mqtt
 ```
+
+
 
 Then take a look at the example: [attachments/mqtt_example.py](attachments/mqtt_example.py)
 
