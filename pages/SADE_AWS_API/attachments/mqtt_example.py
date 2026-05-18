@@ -2,6 +2,7 @@
 # https://pypi.org/project/paho-mqtt/#getting-started
 
 import ssl
+import time
 import paho.mqtt.client as mqtt
 
 from paho.mqtt.enums import CallbackAPIVersion
@@ -47,3 +48,6 @@ client.on_message = on_message
 
 client.connect(host ="a3dpdfmwa109lg-ats.iot.us-east-2.amazonaws.com", port = 8883)
 client.loop_start()
+
+# Keep the program alive for a little while while we wait for the connection "Success" message to be printed
+time.sleep(10)
