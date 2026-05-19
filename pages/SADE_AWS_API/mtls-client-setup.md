@@ -45,7 +45,7 @@ Here's the web page:
 
 https://mm-public-fileshare.s3.us-west-2.amazonaws.com/cert-wizard-index.html
 
-1. Navigate to web page
+1. Navigate to the web page
 2. Select the type of cert you want
 3. Enter your details. The page auto-updates the bash snippet(s) as you type.
 3. Open a terminal and `cd` to the directory where you want to save your key and CSR files.
