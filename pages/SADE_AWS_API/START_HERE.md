@@ -1,6 +1,6 @@
 # Client Integration Start Here
 
-Status date: 2026-03-09
+Status date: 2026-05-28
 
 If you are integrating with the deployed SADE AWS API, read these in order:
 
@@ -18,12 +18,14 @@ If you are integrating with the deployed SADE AWS API, read these in order:
 
 Current AWS base URL:
 
-`http://sarec-sade-use2-api-alb-1413405053.us-east-2.elb.amazonaws.com`
+`https://api.sadezone.org`
 
-## Current unfinished/stubbed behavior to note
+Public API calls to this base URL require HTTPS mTLS with a SADE-issued client certificate and private key.
 
-This environment is usable for integration testing, but these components are still stubbed:
+## Current integration behavior to note
 
-1. Environmental conditions service: currently returns hardcoded/synthetic data.
-2. Flight tracker integration: stop/finalization behavior is simulated (no external telemetry provider wired yet).
-3. Decision Maker: currently uses a temporary stub service (including `test_overrides` hooks such as `force_decision`).
+This environment is usable for integration testing, with these caveats:
+
+1. Environmental conditions service: may still return hardcoded/synthetic data depending on environment.
+2. Decision Maker and Flight Monitor support `test_overrides` hooks for deterministic integration tests.
+3. Flight Monitor can run its normal telemetry path; fake/no-drone tests should include `test_overrides.flight_monitor` so sessions close automatically.

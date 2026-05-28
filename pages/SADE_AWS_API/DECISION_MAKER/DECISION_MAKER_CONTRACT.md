@@ -1,6 +1,6 @@
 # Decision Maker Contract
 
-**Last Updated On:** 2026-04-22
+**Last Updated On:** 2026-05-28
 
 Unless noted otherwise, quantities, timestamps, and coordinate conventions follow [../QUANTITIES_AND_UNITS.md](../QUANTITIES_AND_UNITS.md).
 
@@ -38,6 +38,14 @@ Suggested request example:
   "request_time_utc": "2026-03-09T17:55:00Z",
   "requested_entry_time_utc": "2026-03-09T18:00:00Z",
   "requested_exit_time_utc": "2026-03-09T19:00:00Z",
+  "declared_payload": {
+    "total_weight_kg": 2.5,
+    "components": [
+      {
+        "type": "CAMERA_01"
+      }
+    ]
+  },
   "uav": {
     "drone_id": "drone-001",
     "model_id": "model-001",
@@ -79,6 +87,8 @@ Suggested request example:
   "entry_request_history": []
 }
 ```
+
+`declared_payload` is copied from the operator's original entry request and is part of the Decision Maker input.
 
 `test_overrides` is only for local/dev testing with the temporary Decision Maker stub. It is not part of the long-term production contract.
 

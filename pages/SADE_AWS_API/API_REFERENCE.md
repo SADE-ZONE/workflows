@@ -1,6 +1,6 @@
 # SADE Client API Reference (AWS)
 
-**Last Updated On:** 2026-04-27
+**Last Updated On:** 2026-05-28
 
 This is the client-facing API contract for teams integrating with the deployed SADE AWS runtime.
 
@@ -15,7 +15,7 @@ Quantities, units, timestamp format, and coordinate conventions follow [./QUANTI
 ## Common rules
 
 1. `POST` endpoints require `Content-Type: application/json`.
-2. Workflow `POST` endpoints require `idempotency_key`, except `POST /exit-request` and `POST /tracker-session-finalized`, which deduplicate by `flight_session_id`.
+2. Workflow `POST` endpoints require `idempotency_key`, except `POST /exit-request`, which deduplicates by `flight_session_id`.
 3. Async workflow `POST` endpoints return an acknowledgment first, not the final business outcome.
 4. Boundary-visible request failures use a standardized envelope with `status`, `failure_code`, `message`, and `details`.
 5. Validation failures use `status="INVALID"` with HTTP `400`; admissibility/business rejections use `status="REJECTED"` with `409` or `404`.
@@ -44,7 +44,6 @@ Quantities, units, timestamp format, and coordinate conventions follow [./QUANTI
 - [`POST /exit-request`](#post-exit-request): record operator intent to leave early and queue Flight Monitor delivery.
 - [`POST /attestation-submission`](#post-attestation-submission): submit attestation evidence for an open action.
 - [`GET /actions/{action_id}`](#get-actionsaction_id): fetch authoritative action-required status.
-- [`POST /tracker-session-finalized`](#post-tracker-session-finalized): finalize a flight session from tracker telemetry.
 - [`GET /reputation-records`](#get-reputation-records): list stored reputation records filtered by organization, pilot, and/or UAV.
 - [`GET /attestation-claims`](#get-attestation-claims): list stored attestation claims filtered by organization, pilot, and/or UAV.
 - [`POST /testing/reputation-records`](#post-testingreputation-records): create a synthetic reputation record for testing/scenario seeding.
@@ -475,6 +474,13 @@ Boundary-visible failures use one common error envelope:
 
 The endpoint acknowledges durable workflow acceptance first, then the caller follows the returned `status_url` for progress and outcome.
 
+Entry-window admissibility rules:
+
+- `requested_exit_time_utc` must be in the future when SADE receives the request.
+- `requested_entry_time_utc` may be in the past by at most 5 minutes. This grace window supports "start now" clients and small clock drift.
+- If the requested entry time is more than 5 minutes in the past, SADE rejects the request before it enters the workflow queue.
+- If the requested exit time is in the past, SADE rejects the request before it enters the workflow queue.
+
 
 
 Request example
@@ -492,9 +498,9 @@ Request example
       "transport": "MQTT"
     }
   },
-  "requested_entry_time_utc": "2026-03-09T18:00:00Z",
-  "requested_exit_time_utc": "2026-03-09T19:00:00Z",
-  "request_time_utc": "2026-03-09T17:55:00Z",
+  "requested_entry_time_utc": "2030-03-09T18:00:00Z",
+  "requested_exit_time_utc": "2030-03-09T19:00:00Z",
+  "request_time_utc": "2030-03-09T17:55:00Z",
   "declared_payload": {
     "total_weight_kg": 2.5,
     "components": [
@@ -514,8 +520,8 @@ Request example
     "weather_service": {
       "forecast": {
         "sade_zone_id": "zone-001",
-        "window_start_utc": "2026-03-09T18:00:00Z",
-        "window_end_utc": "2026-03-09T19:00:00Z",
+        "window_start_utc": "2030-03-09T18:00:00Z",
+        "window_end_utc": "2030-03-09T19:00:00Z",
         "max_wind_knots": 18.0,
         "max_gust_knots": 24.0,
         "min_temp_f": 42.0,
@@ -524,20 +530,38 @@ Request example
         "visibility_min_nm": 8.0,
         "source": "TEST_OVERRIDE",
         "confidence_ratio": 1.0,
-        "generated_at_utc": "2026-03-09T17:55:00Z"
+        "generated_at_utc": "2030-03-09T17:55:00Z"
       }
     },
     "flight_monitor": {
-      "mode": "SIMULATE_FINALIZATION",
       "telemetry_summary": {
+        "altitude_min_m": 12.0,
         "altitude_max_m": 88.0,
-        "battery_end_pct": 61.0
+        "distance_flown_m": 1250.0
       },
       "events": [
         {
           "type": "FLIGHT_SEGMENT",
-          "time_in_utc": "2026-03-09T18:05:00Z",
-          "time_out_utc": "2026-03-09T18:41:00Z"
+          "time_in_utc": "2030-03-09T18:05:00Z",
+          "time_out_utc": "2030-03-09T18:41:00Z",
+          "battery_state_in": {
+            "system_charge_pct": 98.0,
+            "slots": [
+              {
+                "slot_id": "A",
+                "voltage_v": 24.8
+              }
+            ]
+          },
+          "battery_state_out": {
+            "system_charge_pct": 61.0,
+            "slots": [
+              {
+                "slot_id": "A",
+                "voltage_v": 23.9
+              }
+            ]
+          }
         }
       ]
     }
@@ -550,7 +574,7 @@ Optional test-only override hook (inside top-level `test_overrides`):
 - `decision_maker.force_decision`: `APPROVED`, `APPROVED_CONSTRAINTS`, `DENIED`, `ACTION_REQUIRED`, `NONE`, `RAISE`
 - `decision_maker.evidence_requirement_spec`: optional requirement override for forced `ACTION_REQUIRED` stub responses
 - `weather_service.forecast`: temporary override payload consumed by the no-op environmental service in local/dev flows
-- `flight_monitor`: optional temporary pass-through object forwarded as the outbound Flight Monitor `test_overrides` value for stub/dev behavior
+- `flight_monitor`: optional pass-through object forwarded as the outbound Flight Monitor `test_overrides` value for deterministic no-drone testing; when present, Flight Monitor closes the session automatically after a short delay
 
 Example override shape:
 
@@ -577,8 +601,8 @@ Example override shape:
     "weather_service": {
       "forecast": {
         "sade_zone_id": "zone-001",
-        "window_start_utc": "2026-03-09T18:00:00Z",
-        "window_end_utc": "2026-03-09T19:00:00Z",
+        "window_start_utc": "2030-03-09T18:00:00Z",
+        "window_end_utc": "2030-03-09T19:00:00Z",
         "max_wind_knots": 18.0,
         "max_gust_knots": 24.0,
         "min_temp_f": 42.0,
@@ -587,20 +611,38 @@ Example override shape:
         "visibility_min_nm": 8.0,
         "source": "TEST_OVERRIDE",
         "confidence_ratio": 1.0,
-        "generated_at_utc": "2026-03-09T17:55:00Z"
+        "generated_at_utc": "2030-03-09T17:55:00Z"
       }
     },
     "flight_monitor": {
-      "mode": "SIMULATE_FINALIZATION",
       "telemetry_summary": {
+        "altitude_min_m": 12.0,
         "altitude_max_m": 88.0,
-        "battery_end_pct": 61.0
+        "distance_flown_m": 1250.0
       },
       "events": [
         {
           "type": "FLIGHT_SEGMENT",
-          "time_in_utc": "2026-03-09T18:05:00Z",
-          "time_out_utc": "2026-03-09T18:41:00Z"
+          "time_in_utc": "2030-03-09T18:05:00Z",
+          "time_out_utc": "2030-03-09T18:41:00Z",
+          "battery_state_in": {
+            "system_charge_pct": 98.0,
+            "slots": [
+              {
+                "slot_id": "A",
+                "voltage_v": 24.8
+              }
+            ]
+          },
+          "battery_state_out": {
+            "system_charge_pct": 61.0,
+            "slots": [
+              {
+                "slot_id": "A",
+                "voltage_v": 23.9
+              }
+            ]
+          }
         }
       ]
     }
@@ -620,7 +662,7 @@ Example override shape:
 }
 ```
 
-This is a testing hook for the temporary stubbed integrations. It is useful when the SafeCert or Decision Maker teams want to exercise deterministic paths without changing SADE code.
+This is a testing hook for deterministic integration paths. It is useful when the SafeCert, Decision Maker, or Flight Monitor teams want to exercise workflows without changing SADE code or waiting for live telemetry.
 
 When `decision_maker.force_decision` is `ACTION_REQUIRED`, you may provide `decision_maker.evidence_requirement_spec.categories` to override the stub's default requirement categories for SafeCert testing.
 
@@ -660,6 +702,28 @@ Rejected (HTTP 409):
   "status": "REJECTED",
   "message": "Missing required registry records (pilot/uav/zone/model).",
   "failure_code": "MISSING_REGISTRY_RECORDS",
+  "details": []
+}
+```
+
+Rejected because the requested exit time is in the past (HTTP 409):
+
+```json
+{
+  "status": "REJECTED",
+  "failure_code": "ENTRY_REQUEST_EXIT_TIME_IN_PAST",
+  "message": "requested_exit_time_utc must be in the future.",
+  "details": []
+}
+```
+
+Rejected because the requested entry time is too far in the past (HTTP 409):
+
+```json
+{
+  "status": "REJECTED",
+  "failure_code": "ENTRY_REQUEST_ENTRY_TIME_TOO_FAR_IN_PAST",
+  "message": "requested_entry_time_utc cannot be more than 5 minutes in the past.",
   "details": []
 }
 ```
@@ -1121,75 +1185,6 @@ Status response example (HTTP 200)
 
 
 </details>
-# Telemetry Monitor API
-
-## `POST /tracker-session-finalized`
-
-<a id="post-tracker-session-finalized"></a>
-<details>
-<summary>Details and examples</summary>
-
-
-Tracker-authoritative closeout endpoint.  
-Use this to finalize a planned session and persist final telemetry for reputation.
-Idempotency is keyed by `flight_session_id`.
-
-Request example
-
-```json
-{
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "report_time_utc": "2026-03-09T19:05:00Z",
-  "telemetry_summary": {
-    "altitude_min_m": 12.0,
-    "altitude_max_m": 94.5,
-    "distance_flown_m": 1250.0
-  },
-  "events": [
-    {
-      "type": "FLIGHT_SEGMENT",
-      "time_in_utc": "2026-03-09T18:00:00Z",
-      "time_out_utc": "2026-03-09T19:03:00Z"
-    }
-  ]
-}
-```
-
-SADE derives the actual flown window from the `events` list:
-
-- earliest `FLIGHT_SEGMENT.time_in_utc`
-- latest `FLIGHT_SEGMENT.time_out_utc`
-
-For current Flight Monitor contract details and the event, incident-code, and payload-type conventions used in stored reputation records, see [SADE_CONTRACT.md](./FLIGHT_MONITOR/SADE_CONTRACT.md) and [REFERENCE_TABLES.md](./FLIGHT_MONITOR/REFERENCE_TABLES.md).
-
-Scenario responses (HTTP 200)
-
-Finalized:
-
-```json
-{
-  "status": "EXITED",
-  "reason": "Session finalized from tracker report.",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "reputation_record_id": "772d0ca7-0f5d-4b63-9f33-f5d6240be205"
-}
-```
-
-Business failed:
-
-```json
-{
-  "status": "FAILED",
-  "reason": "No session found for tracker finalization report.",
-  "flight_session_id": "8c189f91-0348-4a15-a6f0-23377dca7834",
-  "reputation_record_id": null
-}
-```
-
-
-
-</details>
-
 # Website Query APIs
 
 These endpoints are intended for read-oriented website or operator UI views.

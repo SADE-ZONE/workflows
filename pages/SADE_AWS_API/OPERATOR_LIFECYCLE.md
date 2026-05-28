@@ -1,12 +1,12 @@
 # Operator Lifecycle Guide (AWS Runtime)
 
-**Last Updated On:** 2026-04-22
+**Last Updated On:** 2026-05-28
 
 This guide is the practical sequence for operator-facing testing and integration.
 
 Base URL used below:
 
-`http://sarec-sade-use2-api-alb-1413405053.us-east-2.elb.amazonaws.com`
+`https://api.sadezone.org`
 
 ## 1) Create registry records first
 
@@ -17,7 +17,7 @@ Before requesting entry, seed all required registry records:
 3. `POST /registry/pilot`
 4. `POST /registry/zone`
 
-If any required registry record is missing, `/entry-request` will return `lifecycle_status: "FAILED"`.
+If any required registry record is missing, `/entry-request` is rejected at admission.
 
 ## 2) Submit entry request
 
@@ -29,6 +29,12 @@ Possible outcomes:
 
 1. HTTP `202` with `status: "ACCEPTED"` and a `status_url`
 2. HTTP `409` with `status: "REJECTED"` and a `failure_code`
+
+Entry-window admission rules:
+
+1. `requested_exit_time_utc` must be in the future.
+2. `requested_entry_time_utc` may be at most 5 minutes in the past.
+3. Requests outside those bounds are rejected before entering the async workflow.
 
 After acceptance, read `GET /entry-requests/{evaluation_series_id}` using the `status_url`.
 If the workflow becomes action-required, the status response will include `action_required.action_id`.
@@ -108,8 +114,9 @@ Flight-monitor testing hook:
 
 1. `test_overrides.flight_monitor` may be provided on the entry request.
 2. On approval, SADE forwards that object as the outbound Flight Monitor `test_overrides` value.
-3. If `test_overrides.flight_monitor` is absent, SADE forwards outbound `test_overrides=null`.
-4. This is intentionally a pass-through hook for stub/dev integrations, so SADE does not interpret the object contents.
+3. When that object is present, Flight Monitor uses the test finalization path and closes the session automatically after a short delay.
+4. If `test_overrides.flight_monitor` is absent, SADE forwards outbound `test_overrides=null`.
+5. This is intentionally a pass-through hook for stub/dev integrations, so SADE does not interpret the object contents.
 
 ## 4) Action-required continuation is SafeCert-owned (manual for now)
 
@@ -135,39 +142,22 @@ Operational reason:
 3. The operator should therefore treat the status URL as the source of truth for ongoing progress, not the original `POST /entry-request` response or MQTT summary.
 4. SADE also rejects overlapping windows for the same drone or same pilot, even before decisioning finishes.
 
-## 5) Session finalization is telemetry-owned (manual for now)
+## 5) Session finalization is Flight Monitor-owned
 
 This stage is from the telemetry monitor/tracker perspective, not the pilot/operator UI perspective.
 
-Normal production intent:
+Current behavior:
 
 1. SADE registers the approved session with the Flight Monitor.
 2. If the operator wants to leave early, they may send `POST /exit-request`.
-3. Flight Monitor treats that as exit intent only, not immediate finalization.
-4. Telemetry monitor confirms actual flight completion.
-5. Telemetry monitor sends `POST /tracker-session-finalized` with observed timestamps, summary, and events.
-
-Current environment status:
-
-1. Telemetry monitor integration is not wired yet.
-2. `POST /exit-request` is available and queues the outbound Flight Monitor message asynchronously.
-3. To complete a session in testing, call `/tracker-session-finalized` manually.
-4. Use the same `flight_session_id` from the approved entry session.
-5. Expected success result is `status: "EXITED"`.
+3. SADE accepts the request and queues it to Flight Monitor.
+4. Flight Monitor honors the early-exit request by starting closeout and waiting for telemetry silence.
+5. After the silence grace period, Flight Monitor closes the session with observed timestamps, summary, and events.
+6. If telemetry keeps arriving, Flight Monitor waits until the drone goes silent rather than cutting off a still-transmitting session.
+7. For no-drone integration tests, include `test_overrides.flight_monitor` on the entry request so Flight Monitor can close the session automatically.
 
 Why this design exists:
 
 1. Final closeout is based on telemetry-truth (actual observations), not only operator/operator-app intent.
-2. `POST /exit-request` only communicates intent to leave early.
-3. The authoritative closeout event is the tracker callback, not the exit-intent request.
-
-## 6) Session discipline rule for operators
-
-Operator process should treat one drone as one active session at a time.
-
-Practical rule:
-
-1. Do not run overlapping zone sessions for the same drone.
-2. Finalize the active session (`EXITED`) before submitting the next zone entry for that drone.
-
-This keeps state and audit history consistent, and avoids ambiguity in operational ownership of the active flight.
+2. `POST /exit-request` starts the early-exit closeout path, but the final recorded end still comes from Flight Monitor.
+3. Operators should treat entry status and reputation records as the client-facing source of truth after Flight Monitor closes the session.
