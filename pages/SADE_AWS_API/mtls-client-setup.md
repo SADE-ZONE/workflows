@@ -217,5 +217,47 @@ curl \
 
 ## References
 
-- MQTT topics: [topics.md](topics.md)
 - SADE API reference: [API_REFERENCE.md](https://github.com/SADE-ZONE/workflows/blob/main/pages/SADE_AWS_API/API_REFERENCE.md)
+- MQTT topics: [topics.md](https://github.com/DroneResponse/Onboarding/blob/main/topics.md)
+
+## Optional Helper Library
+The examples in this document require your programs to know the exact paths to your client certificate and private key.
+
+To make this easier, we wrote a small Python helper library called `certpair`. It searches for matching `.crt` and `.key` files and returns their paths.
+
+A helpful workflow is:
+
+1. Copy your certificate and key into your working directory
+2. Call `certpair.find(".")`
+3. Pass the returned paths into your HTTPS or MQTT client
+
+Here's an example:
+```python
+import certpair
+import requests
+
+# search for a matching cert/key in the working directory
+cert_path, key_path = certpair.find(".")
+
+session = requests.Session()
+session.cert = (cert_path, key_path)
+
+URL="https://api.sadezone.org/health"
+response = session.get(URL)
+
+print(response.status_code)
+print(response.json())
+```
+
+In this example, the `certpair` library looks for `.crt` and `.key` files that share the same stem and returns them as `(cert_path, key_path)`. This makes the result easy to pass directly to the `requests` library.
+
+If you're interested you can install the library from GitHub:
+```bash
+pip install git+https://github.com/DroneResponse/certpair@v1.1.1
+```
+
+The library can also resolve certificate paths from environment variables, application config dictionaries and more.
+
+To learn more, take a look at the GitHub repository:
+
+https://github.com/DroneResponse/certpair/tree/main
