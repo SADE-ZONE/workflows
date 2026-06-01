@@ -1,0 +1,44 @@
+{
+  "type": "EVIDENCE_REQUIREMENT",
+  "spec_version": "1.0",
+  "request_id": "REQ-0001",
+  "subject": {
+    "sade_zone_id": "ZONE-123",
+    "pilot_id": "PILOT-456",
+    "organization_id": "ORG-789",
+    "drone_id": "DRONE-001"
+  },
+  "categories": [
+    {
+      "category": "OPERATOR",
+      "requirements": [
+        { 
+            "expr": "PART_107", 
+            "keyword": "PART_107", 
+            "params": [] },
+        { 
+            "expr": "BVLOS", 
+            "keyword": "BVLOS", 
+            "params": [{ "key": "authority", "value": "FAA" }] }
+      ]
+    },
+    {
+      "category": "AVIATION",
+      "requirements": [
+          { "expr": "PAYLOAD(2kg)",
+          "keyword": "PAYLOAD",
+          "params": [{ "key": "takeoff_payload", "value": "2kg" }]
+        }
+      ]
+    },
+    {
+      "category": "AVIATION",
+      "requirements": [
+        { 
+            "expr": "WIND(28mph)", 
+            "keyword": "WIND", 
+            "params": [{ "key": "current_wind_speed", "value": "28mph" }] }
+      ]
+    }
+  ]
+}
