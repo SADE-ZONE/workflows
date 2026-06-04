@@ -167,6 +167,12 @@ mosquitto_sub \
   --key "$PRIVATE_KEY" \
   -i "EXAMPLE_MOS_SUB-123" \
   -t test/example
+```
+on a seperate terminal, please run:
+```
+CLIENT_CERT="./user123.crt"
+PRIVATE_KEY="./user123.key"
+CA_CERT="./CAs.crt"
 
 mosquitto_pub \
   -h "a3dpdfmwa109lg-ats.iot.us-east-2.amazonaws.com" \
