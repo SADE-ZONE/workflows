@@ -1,6 +1,6 @@
 # SADE Client API Reference (AWS)
 
-**Last Updated On:** 2026-05-28
+**Last Updated On:** 2026-08-12
 
 This is the client-facing API contract for teams integrating with the deployed SADE AWS runtime.
 
@@ -515,7 +515,10 @@ Request example
   },
   "test_overrides": {
     "decision_maker": {
-      "force_decision": "ACTION_REQUIRED"
+      "force_decision": "ACTION_REQUIRED",
+      "retry": {
+        "force_decision": "APPROVED"
+      }
     },
     "weather_service": {
       "forecast": {
@@ -573,6 +576,7 @@ Optional test-only override hook (inside top-level `test_overrides`):
 
 - `decision_maker.force_decision`: `APPROVED`, `APPROVED_CONSTRAINTS`, `DENIED`, `ACTION_REQUIRED`, `NONE`, `RAISE`
 - `decision_maker.evidence_requirement_spec`: optional requirement override for forced `ACTION_REQUIRED` stub responses
+- `decision_maker.retry.force_decision`: required when the initial forced decision is `ACTION_REQUIRED`; selects the Decision Maker stub result for the subsequent `RETRY` evaluation
 - `weather_service.forecast`: temporary override payload consumed by the no-op environmental service in local/dev flows
 - `flight_monitor`: optional pass-through object forwarded as the outbound Flight Monitor `test_overrides` value for deterministic no-drone testing; when present, Flight Monitor closes the session automatically after a short delay
 
@@ -586,16 +590,21 @@ Example override shape:
       "evidence_requirement_spec": {
         "categories": [
           {
-            "category": "CUSTOM_CATEGORY",
+            "category": "ENVIRONMENT",
             "requirements": [
               {
-                "expr": "SPECIAL_REVIEW",
-                "keyword": "SPECIAL_REVIEW",
-                "params": []
+                "requirement_id": "req-max-wind-gust",
+                "expr": "MAX_WIND_GUST(28mph)",
+                "keyword": "MAX_WIND_GUST",
+                "params": ["28mph"],
+                "applicable_scopes": ["PILOT", "UAV"]
               }
             ]
           }
         ]
+      },
+      "retry": {
+        "force_decision": "APPROVED"
       }
     },
     "weather_service": {
@@ -664,7 +673,9 @@ Example override shape:
 
 This is a testing hook for deterministic integration paths. It is useful when the SafeCert, Decision Maker, or Flight Monitor teams want to exercise workflows without changing SADE code or waiting for live telemetry.
 
-When `decision_maker.force_decision` is `ACTION_REQUIRED`, you may provide `decision_maker.evidence_requirement_spec.categories` to override the stub's default requirement categories for SafeCert testing.
+When `decision_maker.force_decision` is `ACTION_REQUIRED`, `decision_maker.retry.force_decision` is required. You may omit `decision_maker.evidence_requirement_spec` to use the stub's default requirements. If you provide a custom spec, its categories and requirements must be nonempty, every requirement must contain nonempty `requirement_id`, `expr`, `keyword`, and `applicable_scopes`, scopes must be `PILOT` and/or `UAV`, and requirement IDs must be unique within the spec.
+
+`requirement_id` is an opaque correlation key assigned by the Decision Maker, or by the test author when overriding Decision Maker output. It is unique within one evidence requirement spec; it is not a database row ID and does not need to be a globally fixed ID for a certificate type.
 
 Optional notifications:
 
@@ -962,8 +973,7 @@ Important correlation rule:
 <details>
 <summary>Details and examples</summary>
 
-Transport is currently integration-dependent (`HTTP`, event-driven, or another channel to be finalized).  
-At the moment, SADE does not have a live SafeCert HTTPS endpoint configured, so no real HTTP delivery occurs yet. SADE can create the outbound request and persist it internally, but SafeCert will not receive it over the network until that transport is wired.  
+Transport is HTTP through SADE's callback outbox when `SAFECERT_OUTBOX_TRANSPORT=safecert_http` and the outbox worker has `OUTBOX_SAFECERT_URL` plus client cert/key configuration. Without `SAFECERT_OUTBOX_TRANSPORT`, SADE still creates and persists the outbound request, but delivery uses the local/default outbox transport rather than a live SafeCert call.  
 Payload contract shape:
 
 Payload example (`type: EVIDENCE_REQUIREMENT`)
@@ -983,31 +993,33 @@ Payload example (`type: EVIDENCE_REQUIREMENT`)
     {
       "category": "CERTIFICATION",
       "requirements": [
-        { "expr": "PART_107", "keyword": "PART_107", "params": [] },
-        { "expr": "BVLOS(FAA)", "keyword": "BVLOS", "params": ["FAA"] }
+        { "requirement_id": "req-part-107", "expr": "PART_107", "keyword": "PART_107", "params": [], "applicable_scopes": ["PILOT"] },
+        { "requirement_id": "req-bvlos-faa", "expr": "BVLOS(FAA)", "keyword": "BVLOS", "params": ["FAA"], "applicable_scopes": ["PILOT"] }
       ]
     },
     {
       "category": "CAPABILITY",
       "requirements": [
-        { "expr": "NIGHT_FLIGHT", "keyword": "NIGHT_FLIGHT", "params": [] },
+        { "requirement_id": "req-night-flight", "expr": "NIGHT_FLIGHT", "keyword": "NIGHT_FLIGHT", "params": [], "applicable_scopes": ["UAV"] },
         {
+          "requirement_id": "req-payload-weight",
           "expr": "PAYLOAD(weight<=2kg)",
           "keyword": "PAYLOAD",
-          "params": [{ "key": "weight", "value": "<=2kg" }]
+          "params": [{ "key": "weight", "value": "<=2kg" }],
+          "applicable_scopes": ["UAV"]
         }
       ]
     },
     {
       "category": "ENVIRONMENT",
       "requirements": [
-        { "expr": "MAX_WIND_GUST(28mph)", "keyword": "MAX_WIND_GUST", "params": ["28mph"] }
+        { "requirement_id": "req-max-wind-gust", "expr": "MAX_WIND_GUST(28mph)", "keyword": "MAX_WIND_GUST", "params": ["28mph"], "applicable_scopes": ["UAV"] }
       ]
     },
     {
       "category": "INTERFACE",
       "requirements": [
-        { "expr": "SADE_ATC_API(v1)", "keyword": "SADE_ATC_API", "params": ["v1"] }
+        { "requirement_id": "req-sade-atc-api-v1", "expr": "SADE_ATC_API(v1)", "keyword": "SADE_ATC_API", "params": ["v1"], "applicable_scopes": ["UAV"] }
       ]
     }
   ]
@@ -1025,6 +1037,7 @@ Payload example (`type: EVIDENCE_REQUIREMENT`)
 
 Submits evidence/attestation to satisfy an action-required decision.  
 `in_response_to` must match the `request_id` from SADE's prior `EVIDENCE_REQUIREMENT` payload.
+Each submitted requirement must echo the exact `requirement_id`, `category`, `expr`, and `keyword` from that prior payload. SafeCert does not invent or reinterpret the ID or its scopes.
 SafeCert sends this payload to SADE using the endpoint below.  
 This endpoint returns a receipt, not the final workflow decision.
 
@@ -1049,12 +1062,14 @@ Request example
       "category": "CERTIFICATION",
       "requirements": [
         {
+          "requirement_id": "req-part-107",
           "expr": "PART_107",
           "keyword": "PART_107",
           "params": [],
           "meta": { "status": "SATISFIED", "cert_id": "107-ABCDE", "issuer": "FAA" }
         },
         {
+          "requirement_id": "req-bvlos-faa",
           "expr": "BVLOS(FAA)",
           "keyword": "BVLOS",
           "params": ["FAA"],
@@ -1066,12 +1081,14 @@ Request example
       "category": "CAPABILITY",
       "requirements": [
         {
+          "requirement_id": "req-night-flight",
           "expr": "NIGHT_FLIGHT",
           "keyword": "NIGHT_FLIGHT",
           "params": [],
           "meta": { "status": "SATISFIED", "actual": true }
         },
         {
+          "requirement_id": "req-payload-weight",
           "expr": "PAYLOAD(weight<=2kg)",
           "keyword": "PAYLOAD",
           "params": [{ "key": "weight", "value": "<=2kg" }],
@@ -1083,6 +1100,7 @@ Request example
       "category": "ENVIRONMENT",
       "requirements": [
         {
+          "requirement_id": "req-max-wind-gust",
           "expr": "MAX_WIND_GUST(28mph)",
           "keyword": "MAX_WIND_GUST",
           "params": ["28mph"],
@@ -1094,6 +1112,7 @@ Request example
       "category": "INTERFACE",
       "requirements": [
         {
+          "requirement_id": "req-sade-atc-api-v1",
           "expr": "SADE_ATC_API(v1)",
           "keyword": "SADE_ATC_API",
           "params": ["v1"],
@@ -1119,7 +1138,7 @@ Request example
 }
 ```
 
-Required fields: `idempotency_key`, `submission_time_utc`, `type`, `spec_version`, `attestation_id`, `in_response_to`, `subject`, `categories`, `signatures`, `evidence_refs`.
+Required fields: `idempotency_key`, `submission_time_utc`, `type`, `spec_version`, `attestation_id`, `in_response_to`, `subject`, `categories`, `signatures`, `evidence_refs`. Each category must contain at least one requirement; each requirement must contain nonempty `requirement_id`, `expr`, and `keyword`.
 
 Response examples
 

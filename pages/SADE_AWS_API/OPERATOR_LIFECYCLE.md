@@ -1,6 +1,6 @@
 # Operator Lifecycle Guide (AWS Runtime)
 
-**Last Updated On:** 2026-05-28
+**Last Updated On:** 2026-08-12
 
 This guide is the practical sequence for operator-facing testing and integration.
 
@@ -79,7 +79,26 @@ Example snippet:
 {
   "test_overrides": {
     "decision_maker": {
-      "force_decision": "ACTION_REQUIRED"
+      "force_decision": "ACTION_REQUIRED",
+      "evidence_requirement_spec": {
+        "categories": [
+          {
+            "category": "ENVIRONMENT",
+            "requirements": [
+              {
+                "requirement_id": "req-max-wind-gust",
+                "expr": "MAX_WIND_GUST(28mph)",
+                "keyword": "MAX_WIND_GUST",
+                "params": ["28mph"],
+                "applicable_scopes": ["UAV"]
+              }
+            ]
+          }
+        ]
+      },
+      "retry": {
+        "force_decision": "APPROVED"
+      }
     }
   },
   "declared_payload": {
@@ -99,10 +118,11 @@ Example snippet:
 
 SafeCert testing hook:
 
-1. When `force_decision` is `ACTION_REQUIRED`, the temporary Decision Maker stub also accepts `test_overrides.decision_maker.evidence_requirement_spec.categories`.
-2. If provided, those categories replace the stub's default evidence categories for that forced action-required response.
-3. This is useful for the SafeCert team to test different requirement sets without changing SADE code.
-4. Only the requirement categories are overridden by this hook today; SADE still controls correlation and workflow identifiers.
+1. When `force_decision` is `ACTION_REQUIRED`, `test_overrides.decision_maker.retry.force_decision` is required and defines the forced result for the subsequent `RETRY` evaluation.
+2. The Decision Maker stub also accepts `test_overrides.decision_maker.evidence_requirement_spec.categories`. Omit the spec to use the stub default.
+3. A supplied custom spec must contain nonempty categories and requirements. Each requirement needs a unique `requirement_id`, nonempty `expr` and `keyword`, and one or more `applicable_scopes` values from `PILOT` and `UAV`.
+4. This is useful for the SafeCert team to test different requirement sets without changing SADE code.
+5. The test author supplies Decision Maker-owned requirement fields in an override. `requirement_id` is an opaque key unique within that spec, not a database row ID or a globally fixed certificate-type ID.
 
 Environmental testing hook:
 
@@ -130,10 +150,10 @@ Normal production intent:
 
 Current environment status:
 
-1. SafeCert does not yet have a live HTTPS endpoint configured in SADE.
-2. To complete an action-required SADE transaction, you must send `/attestation-submission` manually.
-3. For manual testing, get `action_required.action_id` from the entry status response and use that as `in_response_to`.
-4. SADE can still write outbound SafeCert requests to its internal outbox, but no actual HTTP delivery will happen until the SafeCert transport endpoint is provided and wired.
+1. SADE can write outbound SafeCert requests to its internal outbox.
+2. If `SAFECERT_OUTBOX_TRANSPORT=safecert_http` and the outbox worker has `OUTBOX_SAFECERT_URL` plus client cert/key secrets, SADE delivers the evidence requirement over HTTP.
+3. Without `SAFECERT_OUTBOX_TRANSPORT`, SADE persists the request locally and you must send `/attestation-submission` manually to complete an action-required transaction.
+4. For manual testing, get `action_required.action_id` from the entry status response and use that as `in_response_to`.
 
 Operational reason:
 

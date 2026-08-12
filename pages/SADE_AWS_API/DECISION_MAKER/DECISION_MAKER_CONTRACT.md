@@ -1,6 +1,6 @@
 # Decision Maker Contract
 
-**Last Updated On:** 2026-05-28
+**Last Updated On:** 2026-08-12
 
 Unless noted otherwise, quantities, timestamps, and coordinate conventions follow [../QUANTITIES_AND_UNITS.md](../QUANTITIES_AND_UNITS.md).
 
@@ -150,9 +150,9 @@ This is meaningful decision context. A pilot-scoped record and a UAV-scoped reco
 
 For the current target shape:
 
-- each claim should include `requirement_id`
-- each claim should include `applicable_scopes`
-- claims should use `["PILOT"]` or `["UAV"]` in v1
+- each claim must include `requirement_id`
+- each claim must include one or more `applicable_scopes`
+- supported scope values are `PILOT` and `UAV`; a claim may apply to either or both
 
 ## Example `reputation_records`
 
@@ -327,9 +327,14 @@ This is not part of the long-term production contract.
         ]
       }
     ]
+  },
+  "retry": {
+    "force_decision": "APPROVED"
   }
 }
 ```
+
+For a forced initial `ACTION_REQUIRED`, `retry.force_decision` is required. SADE carries this object into the `RETRY` request; the Decision Maker stub must select the nested retry decision when `entry_request_kind` is `RETRY`. If a custom evidence spec is supplied, it must satisfy the same nested requirement contract as a real Decision Maker result.
 
 ## Immediate Response
 
@@ -472,7 +477,7 @@ For v1, SADE does not expect intermediate progress callbacks.
 
 ## Standardized `evidence_requirement_spec` for `ACTION_REQUIRED`
 
-When the Decision Maker returns `ACTION_REQUIRED`, it should produce a standardized `evidence_requirement_spec`.
+When the Decision Maker returns `ACTION_REQUIRED`, it must produce a standardized `evidence_requirement_spec`.
 
 That spec tells SADE:
 
@@ -480,7 +485,7 @@ That spec tells SADE:
 - which subject each requirement applies to
 - which `requirement_id` should later appear on resulting claims
 
-Suggested shape:
+Required nested shape:
 
 ```json
 {
@@ -547,3 +552,7 @@ Suggested shape:
   ]
 }
 ```
+
+`categories` and every category's `requirements` must be nonempty. Every requirement must have nonempty `requirement_id`, `expr`, and `keyword`, plus at least one `applicable_scopes` value from `PILOT` and `UAV`. Both scopes may be used on one requirement. Requirement IDs must be unique within the spec.
+
+`requirement_id` is an opaque correlation key owned by the Decision Maker. It is not a claims-table row ID and does not have to be globally fixed for a certificate type. SafeCert echoes it so SADE can match the response to the exact stored requirement without textual fallback.
