@@ -13,6 +13,7 @@ Used by SafeCert / Drone|GCS to report actual capabilities, certifications, and 
 - Each requirement may include **parameters**
 - Attestations may additionally include **metadata**
 - Both requirements and attestations are conveyed using the following grammar and specified semantics, and then wrapping the resulting specification into a JSON payload.  As a look-ahead, here is an example of [requirement](../figures/json/evidence_request_payload.json) payload sent from the SAM-Gateway via Drone|GCS to SafeCert, and the resulting [attestation](../figures/json/evidence_attestation_payload.json).  The following sections explain how this is derived.
+- These examples illustrate the grammar. For the keywords SafeCert supports today and the exact attestation JSON it sends to SADE, see [SafeCert Certificates and SADE Attestations](./certificates.md).
 ---
 
 ## Categories
